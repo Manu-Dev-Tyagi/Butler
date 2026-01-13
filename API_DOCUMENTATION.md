@@ -322,6 +322,123 @@ Base URL: `http://localhost:3000`
 - **Errors:**
   - `404`: Member not found or already unassigned
 
+## Comments
+
+**Note:** Comments are used for collaboration on tickets. They are NOT attached to specific iterations.
+
+### Create Comment on Ticket
+- **Method:** `POST`
+- **URL:** `/tickets/:id/comments`
+- **Body:**
+```json
+{
+  "user_id": "uuid",
+  "content": "This is a comment on the ticket"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "ticket_id": "uuid",
+  "user_id": "uuid",
+  "content": "This is a comment on the ticket",
+  "created_at": "2026-01-13T00:00:00.000Z"
+}
+```
+- **Validation Errors:**
+  - `400`: user_id is required
+  - `400`: content is required and cannot be empty
+- **Errors:**
+  - `404`: Ticket not found
+
+### Get All Comments for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/comments`
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "user_id": "uuid",
+    "content": "This is a comment",
+    "created_at": "2026-01-13T00:00:00.000Z",
+    "user_name": "John Employee",
+    "user_email": "john@butler.com"
+  }
+]
+```
+- **Note:** Returns comments ordered by `created_at DESC` (newest first) with user details
+- **Errors:**
+  - `404`: Ticket not found
+
+## File Attachments
+
+**Critical Business Rule:** Files are ALWAYS linked to an iteration. The `iteration_id` field is mandatory.
+
+**Note:** This API stores file METADATA only. Actual blob storage (S3, etc.) is abstracted and handled separately.
+
+### Upload File (Metadata)
+- **Method:** `POST`
+- **URL:** `/files/upload`
+- **Body:**
+```json
+{
+  "ticket_id": "uuid",
+  "iteration_id": "uuid",
+  "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+  "file_type": "image/png",
+  "uploaded_by": "uuid"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "ticket_id": "uuid",
+  "iteration_id": "uuid",
+  "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+  "file_type": "image/png",
+  "uploaded_by": "uuid",
+  "uploaded_at": "2026-01-13T00:00:00.000Z"
+}
+```
+- **Validation Errors:**
+  - `400`: ticket_id is required
+  - `400`: iteration_id is required - files must be linked to an iteration
+  - `400`: file_url is required and cannot be empty
+  - `400`: uploaded_by (user_id) is required
+- **Errors:**
+  - `404`: Ticket not found
+- **Future Enhancement:** Will emit Slack update event on upload
+
+### Get All Files for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/files`
+- **Description:** Returns all file attachments for a ticket with uploader details
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_id": "uuid",
+    "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+    "file_type": "image/png",
+    "uploaded_by": "uuid",
+    "uploaded_at": "2026-01-13T00:00:00.000Z",
+    "uploader_name": "John Employee",
+    "uploader_email": "john@butler.com"
+  }
+]
+```
+- **Note:** Returns files ordered by `uploaded_at DESC` (newest first)
+- **Errors:**
+  - `404`: Ticket not found
+
+
+
 ## Sprints
 
 **Note:** Sprints are for **analytics and grouping only**. They do NOT control ticket state or implement locking logic. Tickets can be created and modified regardless of sprint dates.

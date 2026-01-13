@@ -1,5 +1,7 @@
 # Butler Project: Context & Understanding
 
+**Repository**: [https://github.com/Manu-Dev-Tyagi/Butler](https://github.com/Manu-Dev-Tyagi/Butler)
+
 This document summarizes the core logic, architecture, and business rules of the **Butler** Project Management System (PMS) to ensure consistent understanding and prevent hallucinations. It is derived from the project overview, database schema, wireframes, and directory structure documentation.
 
 ## 1. System Overview
@@ -122,6 +124,29 @@ The ticket state machine is the single source of truth.
     *   Implemented Departments & Sub-Departments Logic.
     *   Added endpoints: `GET/POST /departments` and `GET/POST /sub-departments`.
     *   Added Tags: Frontend, Backend, Data Eng, QA, DevOps, etc.
+*   **[2026-01-13] Comments & Files (STEP 7 - COLLABORATION & ATTACHMENTS)**:
+    *   **Implemented Comments Module** (Already existed, now registered):
+        *   `modules/comments/comments.repository.ts` - Database layer with user details join
+        *   `modules/comments/comments.service.ts` - Business logic with ticket validation
+        *   `modules/comments/comments.controller.ts` - REST API endpoints
+        *   Endpoints: `POST /tickets/:id/comments`, `GET /tickets/:id/comments`
+    *   **Implemented Files Module** (Completed partial implementation):
+        *   `modules/files/files.repository.ts` - Database layer with uploader details
+        *   `modules/files/files.service.ts` - Business logic enforcing iteration linkage
+        *   `modules/files/files.controller.ts` - Upload and retrieval endpoints
+        *   Endpoints: `POST /files/upload`, `GET /tickets/:id/files`
+    *   **Critical Business Rules Enforced**:
+        *   Files MUST be linked to iterations (`iteration_id` is mandatory)
+        *   File uploads store metadata only (blob storage abstracted per requirements)
+        *   Comments include user details (name, email) in responses
+    *   **Testing**:
+        *   Created `tests/integration/comments_files.test.ts` - 16 comprehensive test cases
+        *   All tests passed: CRUD, validations, iteration linkage enforcement
+    *   **Key Decisions**:
+        *   Files cannot be uploaded without iteration (enforces versioning/audit trail)
+        *   Comments are NOT iteration-specific (general ticket collaboration)
+        *   Future enhancement: Slack update event on file upload (placeholder in code)
+
 *   **[2026-01-13] Ticket Management (STEP 6 - HEART OF PMS)**:
     *   **Implemented Tickets Module** (Complete CRUD + Assignment):
         *   `modules/tickets/tickets.types.ts` - Enums (TicketStatus, TicketPriority, AssignmentStatus) + DTOs

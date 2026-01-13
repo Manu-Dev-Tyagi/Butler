@@ -12,6 +12,8 @@ import projectsRoutes from '@modules/projects/projects.controller';
 import sprintsRoutes from '@modules/sprints/sprints.controller';
 import ticketsRoutes from '@modules/tickets/tickets.controller';
 import iterationsRoutes from '@modules/iterations/iterations.controller';
+import commentsRoutes from '@modules/comments/comments.controller';
+import filesRoutes from '@modules/files/files.controller';
 
 // Initialize Event Subscribers
 import '@events/subscribers/project.subscriber';
@@ -35,6 +37,8 @@ app.use('/', projectsRoutes); // Projects controller handles /projects routes
 app.use('/', sprintsRoutes); // Sprints controller handles /sprints routes
 app.use('/', ticketsRoutes); // Tickets controller handles /tickets routes
 app.use('/', iterationsRoutes); // Iterations controller handles /tickets/:id/iterations and approval routes
+app.use('/', commentsRoutes); // Comments controller handles /tickets/:id/comments routes
+app.use('/', filesRoutes); // Files controller handles /files/upload and /tickets/:id/files routes
 
 // Health Check
 app.get('/health', (req: Request, res: Response) => {
