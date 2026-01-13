@@ -638,7 +638,55 @@ Base URL: `http://localhost:3000`
 - **Errors:**
   - `404`: Ticket not found
 
+  - `404`: Ticket not found
+
+## Notifications (In-App)
+
+**Note:** Notifications are generated automatically by the event system (e.g., when a ticket is assigned).
+
+### Get Current User Notifications
+- **Method:** `GET`
+- **URL:** `/notifications?user_id=uuid`
+- **Description:** Returns the last 50 notifications for the user.
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "user_id": "uuid",
+    "title": "New Ticket Assigned",
+    "message": "You have been assigned to ticket: \"Implement Auth\"",
+    "event_type": "TICKET_ASSIGNED",
+    "entity_id": "ticket-uuid",
+    "is_read": false,
+    "created_at": "2026-01-13T00:00:00.000Z"
+  }
+]
+```
+
+### Get Unread Count
+- **Method:** `GET`
+- **URL:** `/notifications/unread/count?user_id=uuid`
+- **Response (200):**
+```json
+{
+  "count": 5
+}
+```
+
+### Mark Notification as Read
+- **Method:** `PATCH`
+- **URL:** `/notifications/:id/read`
+- **Response (200):**
+```json
+{
+  "status": "success",
+  "message": "Notification marked as read"
+}
+```
+
 ## Ticket Assignment
+
 
 **Critical Business Rule:** Exactly **ONE active owner** per ticket. Reassignment automatically deactivates previous assignment.
 

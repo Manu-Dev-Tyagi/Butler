@@ -12,12 +12,13 @@ import projectsRoutes from '@modules/projects/projects.controller';
 import sprintsRoutes from '@modules/sprints/sprints.controller';
 import ticketsRoutes from '@modules/tickets/tickets.controller';
 import iterationsRoutes from '@modules/iterations/iterations.controller';
+import notificationsRoutes from '@modules/notifications/notifications.controller';
 import commentsRoutes from '@modules/comments/comments.controller';
 import filesRoutes from '@modules/files/files.controller';
 
 // Initialize Event Subscribers
-import '@events/subscribers/project.subscriber';
-import '@events/subscribers/ticket.subscriber';
+// Note: We are now using a separate Worker process for event handling.
+// The API only handles row creation (ProjectEventPublisher, TicketEventPublisher).
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,6 +40,7 @@ app.use('/', ticketsRoutes); // Tickets controller handles /tickets routes
 app.use('/', iterationsRoutes); // Iterations controller handles /tickets/:id/iterations and approval routes
 app.use('/', commentsRoutes); // Comments controller handles /tickets/:id/comments routes
 app.use('/', filesRoutes); // Files controller handles /files/upload and /tickets/:id/files routes
+app.use('/', notificationsRoutes); // Notifications controller handles /notifications routes
 
 // Health Check
 app.get('/health', (req: Request, res: Response) => {
@@ -56,7 +58,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 
 // Start Server
 const server = app.listen(PORT, () => {
-    console.log(`[PMS-BACKEND] 🚀 Server running on http://localhost:${PORT}`);
+    console.log(`[PMS-BACKEND-API] 🚀 Server running on http://localhost:${PORT}`);
 });
 
 // Graceful Shutdown

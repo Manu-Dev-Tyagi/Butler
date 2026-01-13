@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon -r tsconfig-paths/register apps/api/server.ts"
+    "dev": "npm run dev:api",
+    "dev:api": "nodemon --exec ts-node -r tsconfig-paths/register apps/api/server.ts",
+    "dev:worker": "nodemon --exec ts-node -r tsconfig-paths/register apps/worker/worker.ts"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +20,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.0.7",
+    "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.16.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
@@ -33,6 +36,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
+    "node-cron": "^4.2.1",
     "pg": "^8.16.3"
   }
 }

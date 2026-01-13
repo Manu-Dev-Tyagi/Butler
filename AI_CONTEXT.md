@@ -234,3 +234,35 @@ The ticket state machine is the single source of truth.
         *   PROJECT_CREATED event enables async Slack channel creation without blocking API response
         *   Project members tracked with `is_current` flag for historical visibility
         *   All validation enforced at service layer (duplicate checks, required fields)
+
+*   **[2026-01-13] Cron-Based Event Processing System (STEP 8 - ASYNC & NOTIFICATIONS)**:
+    *   **Architecture**: Migrated from in-memory `EventEmitter` to durable DB-backed event queue (`events` table).
+    *   **Implemented Events Module**:
+        *   `modules/events/events.repository.ts` - Queue management (PENDING, PROCESSING, DONE, FAILED)
+        *   `modules/events/events.service.ts` - Bridge for publishers and cron job
+    *   **Migrated Publishers**:
+        *   `events/publishers/ticket.publisher.ts` - Now inserts `TICKET_ASSIGNED` events into DB
+        *   `events/publishers/project.publisher.ts` - Now inserts `PROJECT_CREATED` events into DB
+    *   **Cron Infrastructure**:
+        *   `jobs/cron.ts` - Schedules processing cycle every 1 minute using `node-cron`
+        *   `jobs/event-processor.ts` - Logic for fetching and processing pending events with retry logic (max 3 retries)
+        *   `jobs/handlers/` - Individual handlers for ticket assignment and project creation
+    *   **In-App Notifications**:
+        *   Created `notifications` module with repository and controller
+        *   Endpoints: `GET /notifications`, `GET /notifications/unread/count`, `PATCH /notifications/:id/read`
+    *   **Integrations**: Added placeholders for Slack and Email within handlers
+    *   **Key Decisions**:
+        *   Async processing ensures API speed and reliability
+        *   DB-backed queue provides durability across server restarts
+        *   System is fully ready for future SQS/Kafka swap (consumer swap only)
+258: 
+259: *   **[2026-01-13] Architectural Split & Route Registration**:
+260:     *   **API & Worker Split**: Separated the monolithic runtime into two processes:
+261:         *   `apps/api/server.ts` - Handles HTTP requests and event publishing.
+262:         *   `apps/worker/worker.ts` - Background process for event consumption (Slack, Email).
+263:     *   **Route Registration Fix**:
+264:         *   Registered `Comments`, `Files`, and `Notifications` routes in `server.ts`.
+265:         *   Resolved "Cannot find name 'filesRoutes'" error by adding missing controller imports.
+266:     *   **Process Management**:
+267:         *   Added `npm run dev:api` and `npm run dev:worker` for local development.
+268:         *   Worker process now handles all long-running event processing independently.

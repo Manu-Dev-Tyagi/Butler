@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
 import { ProjectPOC } from '@modules/projects/projects.types';
+import { EventsService } from '@modules/events/events.service';
 
 export interface ProjectCreatedEvent {
     project_id: string;
@@ -8,16 +8,23 @@ export interface ProjectCreatedEvent {
     pocs: ProjectPOC[];
 }
 
-// Global Event Emitter Instance
-export const projectEventEmitter = new EventEmitter();
-
 export class ProjectEventPublisher {
+    private eventsService: EventsService;
+
+    constructor() {
+        this.eventsService = new EventsService();
+    }
+
     /**
      * Emit PROJECT_CREATED event
-     * Triggers async operations like Slack channel creation
+     * Inserts into DB queue for async cron processing
      */
-    emitProjectCreated(event: ProjectCreatedEvent): void {
-        console.log('[EVENT] PROJECT_CREATED emitted:', event.project_id);
-        projectEventEmitter.emit('PROJECT_CREATED', event);
+    async emitProjectCreated(event: ProjectCreatedEvent): Promise<void> {
+        await this.eventsService.publishEvent(
+            'PROJECT_CREATED',
+            'project',
+            event.project_id,
+            event
+        );
     }
 }

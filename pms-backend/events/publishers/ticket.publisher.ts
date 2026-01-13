@@ -1,5 +1,5 @@
-import { EventEmitter } from 'events';
 import { TicketPriority } from '@modules/tickets/tickets.types';
+import { EventsService } from '@modules/events/events.service';
 
 export interface TicketAssignedEvent {
     ticket_id: string;
@@ -9,16 +9,23 @@ export interface TicketAssignedEvent {
     priority: TicketPriority;
 }
 
-// Global Event Emitter Instance for Ticket Events
-export const ticketEventEmitter = new EventEmitter();
-
 export class TicketEventPublisher {
+    private eventsService: EventsService;
+
+    constructor() {
+        this.eventsService = new EventsService();
+    }
+
     /**
      * Emit TICKET_ASSIGNED event
-     * Triggers async operations like Slack + Email notifications
+     * Inserts into DB queue for async cron processing
      */
-    emitTicketAssigned(event: TicketAssignedEvent): void {
-        console.log('[EVENT] TICKET_ASSIGNED emitted:', event.ticket_id);
-        ticketEventEmitter.emit('TICKET_ASSIGNED', event);
+    async emitTicketAssigned(event: TicketAssignedEvent): Promise<void> {
+        await this.eventsService.publishEvent(
+            'TICKET_ASSIGNED',
+            'ticket',
+            event.ticket_id,
+            event
+        );
     }
 }
