@@ -1,843 +1,692 @@
-# Butler PMS - API Documentation
+# Butler PMS API Documentation
 
+This document describes the API endpoints available for testing via Postman.
 Base URL: `http://localhost:3000`
 
----
+## Auth
+| Method | Endpoint | Description | Body |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/auth/login` | Login user | `{"email": "admin@butler.com", "password": "password"}` |
 
-## Authentication
+## Users (Lifecycle & CRUD)
 
-*Authentication endpoints (login, register, token refresh) will be documented separately.*
+### Create User
+- **Method:** `POST`
+- **URL:** `/users`
+- **Body:**
+```json
+{
+  "name": "New Employee",
+  "email": "employee@butler.com",
+  "password": "password123",
+  "role": "EMPLOYEE"
+}
+```
 
----
+### List All Users
+- **Method:** `GET`
+- **URL:** `/users`
 
-## 1. Clients API
+### Get User Profile
+- **Method:** `GET`
+- **URL:** `/users/:id`
 
-### 1.1 Create Client
-**Endpoint**: `POST /clients`
+### Update User Profile
+- **Method:** `PATCH`
+- **URL:** `/users/:id`
+- **Body:**
+```json
+{
+  "name": "Updated Name"
+}
+```
 
-**Request Body**:
+### Initiate Exit (Employee Resignation)
+- **Method:** `POST`
+- **URL:** `/users/:id/exit`
+- **Description:** Sets status to `EXIT_INITIATED`, sets exit request timestamp.
+
+### List Exiting Users
+- **Method:** `GET`
+- **URL:** `/users/exits`
+- **Description:** Returns all users with status `EXIT_INITIATED`.
+
+### Offboard User (Admin Action)
+- **Method:** `POST`
+- **URL:** `/users/:id/offboard`
+- **Description:** 
+    - Sets status to `OFFBOARDED`, sets effective exit timestamp.
+    - **Fails** (400) if the user has active ticket assignments.
+
+## Master Data (Departments)
+
+### List Departments
+- **Method:** `GET`
+- **URL:** `/departments`
+
+### Create Department
+- **Method:** `POST`
+- **URL:** `/departments`
+- **Body:** `{"name": "Tech"}`
+
+### List Sub-Departments
+- **Method:** `GET`
+- **URL:** `/sub-departments`
+
+### Create Sub-Department
+- **Method:** `POST`
+- **URL:** `/sub-departments`
+- **Body:** `{"department_id": "uuid", "name": "Frontend"}`
+
+## Clients
+
+### Create Client
+- **Method:** `POST`
+- **URL:** `/clients`
+- **Body:**
 ```json
 {
   "name": "Acme Corporation"
 }
 ```
-
-**Response** (201 Created):
+- **Response (201):**
 ```json
 {
   "id": "uuid",
   "name": "Acme Corporation"
 }
 ```
+- **Validation Errors:**
+  - `400`: Client name is required
+  - `409`: Client with this name already exists
 
-**Errors**:
-- `400` - Missing or invalid name
-
----
-
-### 1.2 Get All Clients
-**Endpoint**: `GET /clients`
-
-**Response** (200 OK):
+### List All Clients
+- **Method:** `GET`
+- **URL:** `/clients`
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
     "name": "Acme Corporation"
-  },
-  {
-    "id": "uuid",
-    "name": "Tech Startup Inc"
   }
 ]
 ```
 
----
+## Projects
 
-### 1.3 Get Client by ID
-**Endpoint**: `GET /clients/:id`
-
-**Response** (200 OK):
-```json
-{
-  "id": "uuid",
-  "name": "Acme Corporation"
-}
-```
-
-**Errors**:
-- `404` - Client not found
-
----
-
-## 2. Projects API
-
-### 2.1 Create Project (Transactional)
-**Endpoint**: `POST /projects`
-
-**Request Body**:
+### Create Project (Simple)
+- **Method:** `POST`
+- **URL:** `/projects`
+- **Body:**
 ```json
 {
   "client_id": "uuid",
-  "name": "Website Redesign 2024",
-  "status": "ACTIVE",
-  "pocs": [
-    {
-      "name": "John Doe",
-      "email": "john@acme.com",
-      "phone": "+1234567890"
-    }
-  ],
-  "member_ids": ["user-uuid-1", "user-uuid-2"]
+  "name": "Q1 Marketing Campaign"
 }
 ```
-
-**Notes**:
-- `status` is optional (defaults to "ACTIVE")
-- `pocs` is optional (defaults to empty array)
-- `member_ids` is optional (defaults to empty array)
-- **Transactional**: All records created atomically or rolled back on error
-
-**Response** (201 Created):
+- **Response (201):**
 ```json
 {
   "project": {
     "id": "uuid",
     "client_id": "uuid",
-    "name": "Website Redesign 2024",
+    "name": "Q1 Marketing Campaign",
     "status": "ACTIVE",
-    "created_at": "2024-01-15T10:30:00Z"
+    "created_at": "2026-01-13T00:00:00.000Z"
   },
-  "pocs": [
-    {
-      "id": "uuid",
-      "project_id": "uuid",
-      "name": "John Doe",
-      "email": "john@acme.com",
-      "phone": "+1234567890"
-    }
-  ],
-  "members": [
-    {
-      "id": "uuid",
-      "project_id": "uuid",
-      "user_id": "user-uuid-1",
-      "assigned_from": "2024-01-15T10:30:00Z",
-      "assigned_to": null,
-      "is_current": true
-    }
-  ]
+  "pocs": [],
+  "members": []
 }
 ```
 
-**Events Emitted**:
-- `PROJECT_CREATED` - Triggers Slack channel creation (simulated)
+### Create Project (with POCs and Members)
+- **Method:** `POST`
+- **URL:** `/projects`
+- **Body:**
+```json
+{
+  "client_id": "uuid",
+  "name": "Q1 Marketing Campaign",
+  "pocs": [
+    {
+      "name": "John Doe",
+      "email": "john@client.com",
+      "phone": "555-1234"
+    }
+  ],
+  "member_ids": ["user-uuid-1", "user-uuid-2"]
+}
+```
+- **Response (201):**
+```json
+{
+  "project": { ... },
+  "pocs": [ ... ],
+  "members": [ ... ]
+}
+```
+- **Note:** Creates project, POCs, and member assignments atomically (transactional)
+- **Triggers:** `PROJECT_CREATED` event for async Slack channel creation
+- **Validation Errors:**
+  - `400`: client_id and name are required
 
-**Errors**:
-- `400` - Missing required fields or invalid client_id
-- `500` - Transaction failed (all changes rolled back)
-
----
-
-### 2.2 Get All Projects
-**Endpoint**: `GET /projects`
-
-**Response** (200 OK):
+### List All Projects
+- **Method:** `GET`
+- **URL:** `/projects`
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
     "client_id": "uuid",
-    "name": "Website Redesign 2024",
+    "name": "Q1 Marketing Campaign",
     "status": "ACTIVE",
-    "created_at": "2024-01-15T10:30:00Z"
+    "created_at": "2026-01-13T00:00:00.000Z"
   }
 ]
 ```
 
----
-
-### 2.3 Get Project by ID
-**Endpoint**: `GET /projects/:id`
-
-**Response** (200 OK):
+### Get Project by ID
+- **Method:** `GET`
+- **URL:** `/projects/:id`
+- **Response (200):**
 ```json
 {
   "id": "uuid",
   "client_id": "uuid",
-  "name": "Website Redesign 2024",
+  "name": "Q1 Marketing Campaign",
   "status": "ACTIVE",
-  "created_at": "2024-01-15T10:30:00Z"
+  "created_at": "2026-01-13T00:00:00.000Z"
 }
 ```
+- **Errors:**
+  - `404`: Project not found
 
-**Errors**:
-- `404` - Project not found
+### Update Project
+- **Method:** `PATCH`
+- **URL:** `/projects/:id`
+- **Body:**
+```json
+{
+  "name": "Updated Project Name",
+  "status": "ACTIVE"
+}
+```
+- **Response (200):**
+```json
+{
+  "id": "uuid",
+  "client_id": "uuid",
+  "name": "Updated Project Name",
+  "status": "ACTIVE",
+  "created_at": "2026-01-13T00:00:00.000Z"
+}
+```
+- **Errors:**
+  - `404`: Project not found
 
----
+## Project POCs
 
-### 2.4 Get Project POCs
-**Endpoint**: `GET /projects/:id/pocs`
+### Add POC to Project
+- **Method:** `POST`
+- **URL:** `/projects/:id/pocs`
+- **Body:**
+```json
+{
+  "name": "Alice Cooper",
+  "email": "alice@client.com",
+  "phone": "555-5678"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "project_id": "uuid",
+  "name": "Alice Cooper",
+  "email": "alice@client.com",
+  "phone": "555-5678"
+}
+```
+- **Validation Errors:**
+  - `400`: POC name is required
 
-**Response** (200 OK):
+### List POCs for Project
+- **Method:** `GET`
+- **URL:** `/projects/:id/pocs`
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
     "project_id": "uuid",
-    "name": "John Doe",
-    "email": "john@acme.com",
-    "phone": "+1234567890"
+    "name": "Alice Cooper",
+    "email": "alice@client.com",
+    "phone": "555-5678"
   }
 ]
 ```
 
----
+## Project Members
 
-### 2.5 Get Project Members
-**Endpoint**: `GET /projects/:id/members`
+### Assign Member to Project
+- **Method:** `POST`
+- **URL:** `/projects/:id/members`
+- **Body:**
+```json
+{
+  "user_id": "uuid"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "project_id": "uuid",
+  "user_id": "uuid",
+  "assigned_from": "2026-01-13T00:00:00.000Z",
+  "assigned_to": null,
+  "is_current": true
+}
+```
+- **Validation Errors:**
+  - `400`: user_id is required
+  - `409`: User is already assigned to this project
 
-**Response** (200 OK):
+### List Members for Project
+- **Method:** `GET`
+- **URL:** `/projects/:id/members`
+- **Description:** Returns current members only (is_current = TRUE) with user details
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
     "project_id": "uuid",
     "user_id": "uuid",
-    "assigned_from": "2024-01-15T10:30:00Z",
+    "assigned_from": "2026-01-13T00:00:00.000Z",
     "assigned_to": null,
-    "is_current": true
+    "is_current": true,
+    "user_name": "John Employee",
+    "user_email": "john@butler.com"
   }
 ]
 ```
 
----
+### Remove Member from Project
+- **Method:** `DELETE`
+- **URL:** `/projects/:id/members/:userId`
+- **Description:** Sets `is_current = FALSE` and `assigned_to = CURRENT_TIMESTAMP` (historical tracking)
+- **Response:** `204 No Content`
+- **Errors:**
+  - `404`: Member not found or already unassigned
 
-## 3. Sprints API
+## Comments
 
-**Note**: Sprints are for analytics only - no locking or workflow enforcement.
+**Note:** Comments are used for collaboration on tickets. They are NOT attached to specific iterations.
 
-### 3.1 Create Sprint
-**Endpoint**: `POST /sprints`
-
-**Request Body**:
+### Create Comment on Ticket
+- **Method:** `POST`
+- **URL:** `/tickets/:id/comments`
+- **Body:**
 ```json
 {
-  "name": "Sprint 24-Q1-W1",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-07"
+  "user_id": "uuid",
+  "content": "This is a comment on the ticket"
 }
 ```
-
-**Validation**:
-- `end_date` must be after `start_date`
-- Sprint name must be unique
-
-**Response** (201 Created):
+- **Response (201):**
 ```json
 {
   "id": "uuid",
-  "name": "Sprint 24-Q1-W1",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-07"
+  "ticket_id": "uuid",
+  "user_id": "uuid",
+  "content": "This is a comment on the ticket",
+  "created_at": "2026-01-13T00:00:00.000Z"
 }
 ```
+- **Validation Errors:**
+  - `400`: user_id is required
+  - `400`: content is required and cannot be empty
+- **Errors:**
+  - `404`: Ticket not found
 
-**Errors**:
-- `400` - Invalid dates or missing fields
-- `409` - Duplicate sprint name
-
----
-
-### 3.2 Get All Sprints
-**Endpoint**: `GET /sprints`
-
-**Notes**: Results are ordered by `start_date DESC`
-
-**Response** (200 OK):
+### Get All Comments for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/comments`
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
-    "name": "Sprint 24-Q1-W2",
-    "start_date": "2024-01-08",
-    "end_date": "2024-01-14"
+    "ticket_id": "uuid",
+    "user_id": "uuid",
+    "content": "This is a comment",
+    "created_at": "2026-01-13T00:00:00.000Z",
+    "user_name": "John Employee",
+    "user_email": "john@butler.com"
+  }
+]
+```
+- **Note:** Returns comments ordered by `created_at DESC` (newest first) with user details
+- **Errors:**
+  - `404`: Ticket not found
+
+## File Attachments
+
+**Critical Business Rule:** Files are ALWAYS linked to an iteration. The `iteration_id` field is mandatory.
+
+**Note:** This API stores file METADATA only. Actual blob storage (S3, etc.) is abstracted and handled separately.
+
+### Upload File (Metadata)
+- **Method:** `POST`
+- **URL:** `/files/upload`
+- **Body:**
+```json
+{
+  "ticket_id": "uuid",
+  "iteration_id": "uuid",
+  "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+  "file_type": "image/png",
+  "uploaded_by": "uuid"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "ticket_id": "uuid",
+  "iteration_id": "uuid",
+  "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+  "file_type": "image/png",
+  "uploaded_by": "uuid",
+  "uploaded_at": "2026-01-13T00:00:00.000Z"
+}
+```
+- **Validation Errors:**
+  - `400`: ticket_id is required
+  - `400`: iteration_id is required - files must be linked to an iteration
+  - `400`: file_url is required and cannot be empty
+  - `400`: uploaded_by (user_id) is required
+- **Errors:**
+  - `404`: Ticket not found
+- **Future Enhancement:** Will emit Slack update event on upload
+
+### Get All Files for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/files`
+- **Description:** Returns all file attachments for a ticket with uploader details
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_id": "uuid",
+    "file_url": "https://s3.amazonaws.com/bucket/design-v1.png",
+    "file_type": "image/png",
+    "uploaded_by": "uuid",
+    "uploaded_at": "2026-01-13T00:00:00.000Z",
+    "uploader_name": "John Employee",
+    "uploader_email": "john@butler.com"
+  }
+]
+```
+- **Note:** Returns files ordered by `uploaded_at DESC` (newest first)
+- **Errors:**
+  - `404`: Ticket not found
+
+
+
+## Sprints
+
+**Note:** Sprints are for **analytics and grouping only**. They do NOT control ticket state or implement locking logic. Tickets can be created and modified regardless of sprint dates.
+
+### Create Sprint
+- **Method:** `POST`
+- **URL:** `/sprints`
+- **Body:**
+```json
+{
+  "name": "Sprint 1",
+  "start_date": "2026-01-20",
+  "end_date": "2026-02-03"
+}
+```
+- **Date Formats Accepted:**
+  - ISO Date String: `"2026-01-20"`
+  - ISO DateTime String: `"2026-01-20T00:00:00Z"`
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "name": "Sprint 1",
+  "start_date": "2026-01-19T18:30:00.000Z",
+  "end_date": "2026-02-02T18:30:00.000Z"
+}
+```
+- **Validation Errors:**
+  - `400`: Missing required fields (name, start_date, end_date)
+  - `400`: Empty sprint name
+  - `400`: Invalid date format
+  - `400`: end_date must be after start_date
+  - `409`: Sprint with this name already exists
+
+### List All Sprints
+- **Method:** `GET`
+- **URL:** `/sprints`
+- **Description:** Returns sprints ordered by `start_date DESC` (most recent first)
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "Sprint 2",
+    "start_date": "2026-02-05T00:00:00.000Z",
+    "end_date": "2026-02-19T00:00:00.000Z"
   },
   {
     "id": "uuid",
-    "name": "Sprint 24-Q1-W1",
-    "start_date": "2024-01-01",
-    "end_date": "2024-01-07"
+    "name": "Sprint 1",
+    "start_date": "2026-01-20T00:00:00.000Z",
+    "end_date": "2026-02-03T00:00:00.000Z"
   }
 ]
 ```
 
----
-
-### 3.3 Get Sprint by ID
-**Endpoint**: `GET /sprints/:id`
-
-**Response** (200 OK):
+### Get Sprint by ID
+- **Method:** `GET`
+- **URL:** `/sprints/:id`
+- **Response (200):**
 ```json
 {
   "id": "uuid",
-  "name": "Sprint 24-Q1-W1",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-07"
+  "name": "Sprint 1",
+  "start_date": "2026-01-20T00:00:00.000Z",
+  "end_date": "2026-02-03T00:00:00.000Z"
 }
 ```
+- **Errors:**
+  - `404`: Sprint not found
 
-**Errors**:
-- `404` - Sprint not found
+## Tickets (HEART OF PMS)
 
----
+**Note:** Tickets are the core work units. They follow a strict state machine and enforce **exactly ONE active owner** per ticket.
 
-### 3.4 Update Sprint
-**Endpoint**: `PATCH /sprints/:id`
-
-**Request Body** (all fields optional):
+### Create Ticket
+- **Method:** `POST`
+- **URL:** `/tickets`
+- **Body (Minimal):**
 ```json
 {
-  "name": "Sprint 24-Q1-W1-Updated",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-08"
+  "project_id": "uuid",
+  "title": "Implement user authentication",
+  "priority": "HIGH"
 }
 ```
-
-**Response** (200 OK):
-```json
-{
-  "id": "uuid",
-  "name": "Sprint 24-Q1-W1-Updated",
-  "start_date": "2024-01-01",
-  "end_date": "2024-01-08"
-}
-```
-
-**Errors**:
-- `400` - Invalid dates
-- `404` - Sprint not found
-
----
-
-### 3.5 Delete Sprint
-**Endpoint**: `DELETE /sprints/:id`
-
-**Response** (200 OK):
-```json
-{
-  "message": "Sprint deleted successfully"
-}
-```
-
-**Errors**:
-- `404` - Sprint not found
-
----
-
-## 4. Tickets API
-
-### 4.1 Create Ticket
-**Endpoint**: `POST /tickets`
-
-**Request Body**:
+- **Body (Full):**
 ```json
 {
   "project_id": "uuid",
   "sprint_id": "uuid",
-  "title": "Create homepage hero section",
-  "description": "Design and implement the hero section with CTA",
+  "title": "Implement user authentication",
+  "description": "Add JWT-based authentication with role-based access control",
   "priority": "HIGH",
-  "delivery_datetime": "2024-01-20T18:00:00Z",
-  "delivery_slot": "Evening",
-  "ad_name": "Hero Banner Ad",
-  "creative_count": 3
+  "delivery_datetime": "2026-02-01T10:00:00Z",
+  "delivery_slot": "Morning",
+  "ad_name": "Campaign Ad Name",
+  "creative_count": 5
 }
 ```
-
-**Required Fields**:
-- `project_id`
-- `title`
-- `priority` (LOW, MEDIUM, HIGH, URGENT)
-
-**Optional Fields**:
-- `sprint_id`, `description`, `delivery_datetime`, `delivery_slot`, `ad_name`, `creative_count`
-
-**Response** (201 Created):
+- **Priority Values:** `LOW`, `MEDIUM`, `HIGH`, `URGENT`
+- **Response (201):**
 ```json
 {
   "id": "uuid",
   "project_id": "uuid",
-  "sprint_id": "uuid",
-  "title": "Create homepage hero section",
-  "description": "Design and implement the hero section with CTA",
+  "sprint_id": null,
+  "title": "Implement user authentication",
+  "description": null,
   "priority": "HIGH",
-  "delivery_datetime": "2024-01-20T18:00:00Z",
-  "delivery_slot": "Evening",
-  "ad_name": "Hero Banner Ad",
-  "creative_count": 3,
+  "delivery_datetime": null,
+  "delivery_slot": null,
+  "ad_name": null,
+  "creative_count": null,
   "status": "CREATED",
-  "created_at": "2024-01-15T10:30:00Z"
+  "created_at": "2026-01-13T00:00:00.000Z"
 }
 ```
+- **Validation Errors:**
+  - `400`: project_id, title, and priority are required
+  - `400`: Title cannot be empty
+  - `400`: Invalid priority value
 
-**Errors**:
-- `400` - Missing required fields or invalid priority
-
----
-
-### 4.2 Get All Tickets
-**Endpoint**: `GET /tickets`
-
-**Response** (200 OK):
+### List All Tickets
+- **Method:** `GET`
+- **URL:** `/tickets`
+- **Description:** Returns tickets ordered by `created_at DESC`
+- **Response (200):**
 ```json
 [
   {
     "id": "uuid",
     "project_id": "uuid",
     "sprint_id": "uuid",
-    "title": "Create homepage hero section",
-    "description": "Design and implement the hero section with CTA",
+    "title": "Implement user authentication",
+    "description": "...",
     "priority": "HIGH",
-    "delivery_datetime": "2024-01-20T18:00:00Z",
-    "delivery_slot": "Evening",
-    "ad_name": "Hero Banner Ad",
-    "creative_count": 3,
+    "delivery_datetime": "2026-02-01T10:00:00.000Z",
+    "delivery_slot": "Morning",
+    "ad_name": "Campaign Ad",
+    "creative_count": 5,
     "status": "ASSIGNED",
-    "created_at": "2024-01-15T10:30:00Z"
+    "created_at": "2026-01-13T00:00:00.000Z"
   }
 ]
 ```
 
----
-
-### 4.3 Get Ticket by ID
-**Endpoint**: `GET /tickets/:id`
-
-**Response** (200 OK):
+### Get Ticket by ID
+- **Method:** `GET`
+- **URL:** `/tickets/:id`
+- **Response (200):**
 ```json
 {
   "id": "uuid",
   "project_id": "uuid",
   "sprint_id": "uuid",
-  "title": "Create homepage hero section",
-  "description": "Design and implement the hero section with CTA",
+  "title": "Implement user authentication",
+  "description": "...",
   "priority": "HIGH",
-  "delivery_datetime": "2024-01-20T18:00:00Z",
-  "delivery_slot": "Evening",
-  "ad_name": "Hero Banner Ad",
-  "creative_count": 3,
-  "status": "IN_PROGRESS",
-  "created_at": "2024-01-15T10:30:00Z"
+  "status": "ASSIGNED",
+  "created_at": "2026-01-13T00:00:00.000Z"
 }
 ```
+- **Errors:**
+  - `404`: Ticket not found
 
-**Errors**:
-- `404` - Ticket not found
-
----
-
-### 4.4 Update Ticket
-**Endpoint**: `PATCH /tickets/:id`
-
-**Request Body** (all fields optional):
+### Update Ticket
+- **Method:** `PATCH`
+- **URL:** `/tickets/:id`
+- **Body:**
 ```json
 {
   "title": "Updated title",
   "description": "Updated description",
   "priority": "URGENT",
-  "delivery_datetime": "2024-01-21T18:00:00Z",
-  "status": "IN_PROGRESS"
+  "delivery_datetime": "2026-02-05T14:00:00Z",
+  "delivery_slot": "Afternoon",
+  "ad_name": "New Ad Name",
+  "creative_count": 10,
+  "sprint_id": "uuid"
 }
 ```
-
-**Response** (200 OK):
+- **Note:** All fields are optional. Only provided fields will be updated.
+- **Response (200):**
 ```json
 {
   "id": "uuid",
   "title": "Updated title",
   "description": "Updated description",
   "priority": "URGENT",
-  "status": "IN_PROGRESS",
-  ...
+  "..."
 }
 ```
+- **Validation Errors:**
+  - `400`: Title cannot be empty
+  - `400`: Invalid priority value
+- **Errors:**
+  - `404`: Ticket not found
 
-**Errors**:
-- `400` - Invalid field values
-- `404` - Ticket not found
+## Ticket Assignment
 
----
+**Critical Business Rule:** Exactly **ONE active owner** per ticket. Reassignment automatically deactivates previous assignment.
 
-### 4.5 Assign Ticket (Transactional)
-**Endpoint**: `POST /tickets/:id/assign`
-
-**Request Body**:
+### Assign Ticket to User
+- **Method:** `POST`
+- **URL:** `/tickets/:id/assign`
+- **Body:**
 ```json
 {
   "user_id": "uuid"
 }
 ```
-
-**Business Rule**: **ONE Active Owner Rule** - Only one user can be actively assigned to a ticket at a time.
-
-**Transaction Flow**:
-1. Deactivate all existing active assignments (set `assignment_status = 'INACTIVE'`)
-2. Create new assignment (set `assignment_status = 'ACTIVE'`)
-3. Update ticket status to `ASSIGNED`
-4. Emit `TICKET_ASSIGNED` event (triggers Slack + Email notifications)
-
-**Response** (200 OK):
+- **State Transition:** `CREATED` → `ASSIGNED` (on first assignment)
+- **Triggers:** `TICKET_ASSIGNED` event → Slack + Email notifications
+- **Response (200):**
 ```json
 {
-  "id": "uuid",
-  "ticket_id": "uuid",
-  "user_id": "uuid",
-  "assigned_at": "2024-01-15T10:30:00Z",
-  "unassigned_at": null,
-  "assignment_status": "ACTIVE"
+  "message": "Ticket assigned successfully",
+  "assignment": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "user_id": "uuid",
+    "assigned_at": "2026-01-13T00:00:00.000Z",
+    "unassigned_at": null,
+    "assignment_status": "ACTIVE"
+  }
 }
 ```
+- **Validation Errors:**
+  - `400`: user_id is required
+  - `400`: Ticket is already assigned to this user
+- **Errors:**
+  - `404`: Ticket not found
 
-**Events Emitted**:
-- `TICKET_ASSIGNED` - Triggers Slack + Email notifications (simulated)
-
-**Errors**:
-- `400` - Missing user_id or ticket already assigned to this user
-- `404` - Ticket not found
-- `500` - Transaction failed
-
----
-
-### 4.6 Unassign Ticket
-**Endpoint**: `POST /tickets/:id/unassign`
-
-**Request Body**: None
-
-**Response** (200 OK):
+### Unassign Ticket (Exit Flow Only)
+- **Method:** `POST`
+- **URL:** `/tickets/:id/unassign`
+- **Description:** Deactivates active assignment and updates ticket status to `REASSIGNED`. Used when employee exits.
+- **State Transition:** `*` → `REASSIGNED`
+- **Response (200):**
 ```json
 {
   "message": "Ticket unassigned successfully"
 }
 ```
+- **Validation Errors:**
+  - `400`: Ticket has no active assignment to unassign
+- **Errors:**
+  - `404`: Ticket not found
 
-**Errors**:
-- `400` - Ticket has no active assignment
-- `404` - Ticket not found
 
----
-
-## 5. Iterations API
-
-**Core Concepts**:
-- **Iteration ≠ Ticket**: A ticket can have multiple iterations
-- **Iteration**: Represents a submission attempt
-- **Outcome**: PENDING, APPROVED, REVISION_REQUIRED
-
-### 5.1 Create Iteration (Manual)
-**Endpoint**: `POST /tickets/:id/iterations`
-
-**Request Body**: None
-
-**Notes**:
-- Creates a new iteration with auto-incremented `iteration_number`
-- Initial outcome is `PENDING`
-- Typically used for manual iteration tracking
-
-**Response** (201 Created):
-```json
-{
-  "id": "uuid",
-  "ticket_id": "uuid",
-  "iteration_number": 1,
-  "outcome": "PENDING",
-  "created_at": "2024-01-15T10:30:00Z"
-}
-```
-
-**Errors**:
-- `404` - Ticket not found
-- `409` - Iteration already exists (only for first iteration)
-
----
-
-### 5.2 Get All Iterations for Ticket
-**Endpoint**: `GET /tickets/:id/iterations`
-
-**Notes**: Results ordered by `iteration_number ASC`
-
-**Response** (200 OK):
-```json
-[
-  {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "iteration_number": 1,
-    "outcome": "REVISION_REQUIRED",
-    "created_at": "2024-01-15T10:30:00Z"
-  },
-  {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "iteration_number": 2,
-    "outcome": "APPROVED",
-    "created_at": "2024-01-16T14:20:00Z"
-  }
-]
-```
-
----
-
-## 6. Approvals API
-
-**Core Business Rules**:
-1. **FTR = TRUE** only if approved at iteration 1
-2. **FTR = FALSE** if rejected at any iteration (PERMANENT, LOCKED)
-3. Rejection automatically creates a new iteration
-
-### 6.1 Approve Ticket (Transactional)
-**Endpoint**: `POST /tickets/:id/approve`
-
-**Request Body**:
-```json
-{
-  "approved_by": "user-uuid"
-}
-```
-
-**Transaction Flow**:
-1. Verify current iteration exists and outcome = `PENDING`
-2. Update iteration outcome to `APPROVED`
-3. Calculate FTR:
-   - If `iteration_number === 1`: `first_time_right = TRUE`, `score = 100`
-   - Else: `first_time_right = FALSE`, `score = 0`
-4. Upsert FTR metric (with ON CONFLICT to prevent overwrite)
-5. Update ticket status to `APPROVED`
-6. Create approval record with status `APPROVED`
-
-**Response** (200 OK):
-```json
-{
-  "message": "Ticket approved successfully",
-  "iteration": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "iteration_number": 1,
-    "outcome": "APPROVED",
-    "created_at": "2024-01-15T10:30:00Z"
-  },
-  "approval": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "approved_by": "user-uuid",
-    "status": "APPROVED",
-    "approved_at": "2024-01-15T11:00:00Z"
-  },
-  "ftr": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "first_time_right": true,
-    "score": "100.00"
-  }
-}
-```
-
-**FTR Scoring**:
-- **Iteration 1 Approval**: FTR = TRUE, Score = 100
-- **Iteration 2+ Approval**: FTR = FALSE, Score = 0 (locked from previous rejection)
-
-**Errors**:
-- `400` - Missing `approved_by`, no iteration exists, or iteration not pending
-- `404` - Ticket not found
-- `500` - Transaction failed
-
----
-
-### 6.2 Reject Ticket / Request Revision (Transactional)
-**Endpoint**: `POST /tickets/:id/reject`
-
-**Request Body**:
-```json
-{
-  "approved_by": "user-uuid",
-  "reason": "Design doesn't match brand guidelines" // optional
-}
-```
-
-**Transaction Flow**:
-1. Verify current iteration exists and outcome = `PENDING`
-2. Update current iteration outcome to `REVISION_REQUIRED`
-3. **Create NEW iteration** with `iteration_number + 1`, outcome = `PENDING`
-4. Set FTR = FALSE (score = 0) - **PERMANENT LOCK**
-5. Update ticket status to `REVISION_REQUIRED`
-6. Create approval record with status `REJECTED`
-
-**Response** (200 OK):
-```json
-{
-  "message": "Ticket rejected. Revision required. New iteration created.",
-  "old_iteration": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "iteration_number": 1,
-    "outcome": "REVISION_REQUIRED",
-    "created_at": "2024-01-15T10:30:00Z"
-  },
-  "new_iteration": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "iteration_number": 2,
-    "outcome": "PENDING",
-    "created_at": "2024-01-15T11:00:00Z"
-  },
-  "approval": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "approved_by": "user-uuid",
-    "status": "REJECTED",
-    "approved_at": "2024-01-15T11:00:00Z"
-  },
-  "ftr": {
-    "id": "uuid",
-    "ticket_id": "uuid",
-    "first_time_right": false,
-    "score": "0.00"
-  }
-}
-```
-
-**Critical**: Once FTR is set to FALSE, it can **NEVER** be changed to TRUE, even if iteration 2 is approved later.
-
-**Errors**:
-- `400` - Missing `approved_by`, no iteration exists, or iteration not pending
-- `404` - Ticket not found
-- `500` - Transaction failed
-
----
-
-## Data Types
-
-### TicketStatus Enum
-- `CREATED` - Initial state
-- `ASSIGNED` - Assigned to a user
-- `IN_PROGRESS` - Work started
-- `SUBMITTED` - Submitted for approval
-- `APPROVED` - Approved by PM/client
-- `REVISION_REQUIRED` - Needs rework
-- `REASSIGNED` - Reassigned to another user
-- `DELIVERED` - Final delivery
-- `CLOSED` - Completed and closed
-- `CANCELLED` - Cancelled
-
-### TicketPriority Enum
-- `LOW`
-- `MEDIUM`
-- `HIGH`
-- `URGENT`
-
-### IterationOutcome Enum
-- `PENDING` - Awaiting approval
-- `APPROVED` - Approved
-- `REVISION_REQUIRED` - Rejected, needs rework
-
-### ApprovalStatus Enum
-- `APPROVED` - Approved
-- `REJECTED` - Rejected
-
-### AssignmentStatus Enum
-- `ACTIVE` - Currently assigned
-- `INACTIVE` - Previously assigned (historical)
-
----
-
-## Error Responses
-
-### General Error Format
-```json
-{
-  "error": "Error message description"
-}
-```
-
-### Common Status Codes
-- `200 OK` - Successful GET/PATCH/POST/DELETE
-- `201 Created` - Successful POST (resource created)
-- `400 Bad Request` - Validation error, missing fields, business rule violation
-- `404 Not Found` - Resource not found
-- `409 Conflict` - Duplicate entry (e.g., duplicate sprint name)
-- `500 Internal Server Error` - Server error, transaction failure
-
----
-
-## Transactional Endpoints
-
-The following endpoints use PostgreSQL transactions (BEGIN/COMMIT/ROLLBACK):
-- `POST /projects` - Project + POCs + Members created atomically
-- `POST /tickets/:id/assign` - Assignment + Status update atomic
-- `POST /tickets/:id/approve` - Iteration + FTR + Ticket + Approval atomic
-- `POST /tickets/:id/reject` - Iteration update + New iteration + FTR + Ticket + Approval atomic
-
-**Guarantee**: Either ALL operations succeed, or ALL are rolled back (no partial updates).
-
----
-
-## Event-Driven Notifications
-
-### PROJECT_CREATED Event
-**Triggered By**: `POST /projects`
-**Actions**:
-- Simulated Slack channel creation: `#project-<project-name>`
-
-### TICKET_ASSIGNED Event
-**Triggered By**: `POST /tickets/:id/assign`
-**Actions**:
-- Simulated Slack notification to team channel
-- Simulated email notification to assigned user
-
-**Notes**: All notifications are simulated (console logs) in current implementation. Production would use real Slack/Email integrations.
-
----
-
-## Testing
-
-### Integration Tests Available
-- `tests/integration/clients_projects.test.ts` - 20 tests
-- `tests/integration/sprints.test.ts` - 14 tests
-- `tests/integration/tickets.test.ts` - 18 tests
-- `tests/integration/iterations_approvals.test.ts` - 17 tests
-
-**Total: 69 integration tests, 100% passing**
-
-### Running Tests
-```bash
-# Start server
-npm run dev
-
-# Run specific test
-npx ts-node tests/integration/<test-file>.test.ts
-```
-
----
-
-## Database Schema
-
-### Key Tables
-- `users` - User/employee records
-- `clients` - Client organizations
-- `projects` - Projects
-- `project_pocs` - Project points of contact
-- `project_members` - Project team members (historical)
-- `sprints` - Sprint definitions
-- `tickets` - Work items
-- `ticket_assignments` - Assignment history
-- `ticket_iterations` - Iteration tracking
-- `approvals` - Approval/rejection records
-- `ftr_metrics` - First Time Right quality metrics (unique per ticket)
-
-### Important Constraints
-- `ftr_metrics.ticket_id` - UNIQUE (enables ON CONFLICT for FTR locking)
-- Foreign keys with appropriate CASCADE/RESTRICT behavior
-
----
-
-Last Updated: 2026-01-13 (STEP 7: Iterations & Approvals Complete)
