@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "esModuleInterop": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2017",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@apps/*": [
+        "apps/*"
+      ],
+      "@modules/*": [
+        "modules/*"
+      ],
+      "@database/*": [
+        "database/*"
+      ],
+      "@common/*": [
+        "common/*"
+      ],
+      "@config/*": [
+        "config/*"
+      ],
+      "@events/*": [
+        "events/*"
+      ],
+      "@integrations/*": [
+        "integrations/*"
+      ]
+    }
+  },
+  "include": [
+    "apps/**/*",
+    "modules/**/*",
+    "database/**/*",
+    "common/**/*",
+    "config/**/*",
+    "events/**/*",
+    "integrations/**/*",
+    "jobs/**/*",
+    "analytics/**/*",
+    "tests/**/*",
+  ]
+}

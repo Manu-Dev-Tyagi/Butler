@@ -1,0 +1,11 @@
+{
+    "watch": [
+        "apps",
+        "modules",
+        "common",
+        "config",
+        "database"
+    ],
+    "ext": "ts,json",
+    "exec": "ts-node -r tsconfig-paths/register apps/api/server.ts"
+}
