@@ -5,6 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:integration:happy": "ts-node -r tsconfig-paths/register tests/integration/ticket_lifecycle_happy_path.test.ts",
+    "test:integration:revision": "ts-node -r tsconfig-paths/register tests/integration/ticket_lifecycle_revision_flow.test.ts",
+    "test:integration:all": "npm run test:integration:happy && npm run test:integration:revision",
     "dev": "npm run dev:api",
     "dev:api": "nodemon --exec ts-node -r tsconfig-paths/register apps/api/server.ts",
     "dev:api:direct": "ts-node -r tsconfig-paths/register apps/api/server.ts",
