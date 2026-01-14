@@ -26,4 +26,30 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 });
 
+router.post('/signup', async (req: Request, res: Response) => {
+    try {
+        const { name, email, password, role } = req.body;
+        if (!name || !email || !password || !role) {
+            res.status(400).json({ message: 'Name, email, password and role required' });
+            return;
+        }
+
+        const validRoles = ['ADMIN', 'PM', 'EMPLOYEE'];
+        if (!validRoles.includes(role)) {
+            res.status(400).json({ message: 'Invalid role' });
+            return;
+        }
+
+        const result = await authService.signup({ name, email, password, role });
+        res.status(201).json(result);
+    } catch (error: any) {
+        console.error(error);
+        if (error.message.includes('unique')) {
+            res.status(400).json({ message: 'Email already registered' });
+        } else {
+            res.status(500).json({ message: 'Internal Server Error' });
+        }
+    }
+});
+
 export default router;

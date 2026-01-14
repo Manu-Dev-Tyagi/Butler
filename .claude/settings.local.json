@@ -7,7 +7,13 @@
       "Bash(ts-node:*)",
       "Bash(npx ts-node:*)",
       "Bash(psql:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { query } from '@database/connection';
+import { UsersService } from '../users/users.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 
@@ -26,5 +27,13 @@ export class AuthService {
             access_token: jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' }),
             user,
         };
+    }
+
+    async signup(data: any) {
+        const usersService = new UsersService();
+        const user = await usersService.createUser({
+            ...data
+        });
+        return this.login(user);
     }
 }

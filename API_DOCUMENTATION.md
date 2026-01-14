@@ -3,6 +3,276 @@
 This document describes the API endpoints available for testing via Postman.
 Base URL: `http://localhost:3000`
 
+## External Integrations (Slack & Email)
+
+Butler PMS supports real-time notifications via Slack and Email. These integrations are **disabled by default** and must be configured in `.env`.
+
+### Slack Integration Setup
+
+1. **Create a Slack App**: https://api.slack.com/apps
+2. **Enable Incoming Webhooks**:
+   - Navigate to "Incoming Webhooks" in your app settings
+   - Activate Incoming Webhooks
+   - Click "Add New Webhook to Workspace"
+   - Select the channel where notifications should be posted
+   - Copy the Webhook URL
+3. **Configure `.env`**:
+   ```
+   SLACK_ENABLED=true
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+   ```
+
+**Slack Notifications Include**:
+- 🎫 Ticket assigned (with priority color coding)
+- 📝 Iteration submitted (with iteration number)
+- 🎉 Iteration approved (with FTR status)
+- ✍️ Revision required (with rejection reason)
+- 🚀 Project created (with team details)
+
+### Email Integration Setup
+
+**Option 1: Gmail**
+1. Enable 2-Factor Authentication on your Google account
+2. Generate an App Password: https://myaccount.google.com/apppasswords
+3. Configure `.env`:
+   ```
+   EMAIL_ENABLED=true
+   EMAIL_PROVIDER=gmail
+   EMAIL_FROM=your-email@gmail.com
+   EMAIL_FROM_NAME=Butler PMS
+   EMAIL_USER=your-email@gmail.com
+   EMAIL_PASSWORD=your-16-character-app-password
+   ```
+
+**Option 2: SendGrid**
+1. Sign up for SendGrid: https://sendgrid.com/
+2. Create an API Key with "Mail Send" permissions
+3. Configure `.env`:
+   ```
+   EMAIL_ENABLED=true
+   EMAIL_PROVIDER=sendgrid
+   EMAIL_FROM=noreply@yourdomain.com
+   EMAIL_FROM_NAME=Butler PMS
+   SENDGRID_API_KEY=SG.your_api_key_here
+   ```
+
+**Option 3: Generic SMTP**
+1. Get SMTP credentials from your email provider
+2. Configure `.env`:
+   ```
+   EMAIL_ENABLED=true
+   EMAIL_PROVIDER=smtp
+   EMAIL_FROM=noreply@yourdomain.com
+   EMAIL_FROM_NAME=Butler PMS
+   SMTP_HOST=smtp.yourdomain.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your-smtp-username
+   SMTP_PASSWORD=your-smtp-password
+   ```
+
+**Email Notifications Include**:
+- Professional HTML templates with responsive design
+- Ticket assignment notifications
+- Iteration submission confirmations
+- Approval notifications (with FTR badges)
+- Revision requests (with detailed feedback)
+- Project kickoff announcements (bulk to team)
+
+### Testing Integrations
+
+Run the integration test suite:
+```bash
+# Start API and Worker
+npm run dev:api      # Terminal 1
+npm run dev:worker   # Terminal 2
+
+# Test integrations
+npx ts-node -r tsconfig-paths/register tests/integration/test-integrations.ts
+```
+
+**Note**: If integrations are disabled, notifications will show as "Skipped (disabled)" in logs.
+
+## Red Alerts (Alerting & Governance)
+
+Butler PMS includes an automated Red Alert system that detects structural failures and quality issues.
+
+### Alert Types
+
+**1. Excessive Iterations (🔄)**
+- **Trigger**: Ticket has > 2 iterations
+- **Meaning**: Multiple revisions indicate quality issues
+- **Action Required**: Review process, provide better requirements, improve quality control
+
+**2. SLA Breach (⏰)**
+- **Trigger**: Delivery date crossed but ticket not completed
+- **Meaning**: Deadline missed, client expectations not met
+- **Action Required**: Communicate with client, reassess timeline, expedite delivery
+
+**3. Idle Ticket (💤)**
+- **Trigger**: No updates for > 48 hours
+- **Meaning**: Ticket stuck, possible blocker or abandonment
+- **Action Required**: Check with assignee, remove blockers, reassign if needed
+
+### Automated Detection
+
+- **Scan Frequency**: Every 30 minutes (cron job in worker)
+- **Scope**: All active tickets (status NOT IN CLOSED/CANCELLED/DELIVERED)
+- **Deduplication**: Automatic (won't create duplicate alerts)
+- **Resolution**: Automatic when condition fixed, or manual via API
+
+### Notifications
+
+When alerts are triggered:
+- **Slack**: Rich card with alert details sent to team channel
+- **Email**: HTML email sent to Admin, PM, and ticket assignee
+- **In-App**: Visible in dashboards (Admin and PM only)
+
+---
+
+## Red Alerts API
+
+### Get All Alerts
+- **Method:** `GET`
+- **URL:** `/alerts`
+- **Query Parameters** (all optional):
+  - `reason`: `EXCESSIVE_ITERATIONS` | `SLA_BREACH` | `IDLE_TICKET`
+  - `project_id`: UUID
+  - `ticket_id`: UUID
+  - `from_date`: ISO date string
+  - `to_date`: ISO date string
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "reason": "EXCESSIVE_ITERATIONS",
+    "triggered_at": "2026-01-13T12:00:00.000Z",
+    "ticket_title": "Implement user authentication",
+    "ticket_status": "IN_PROGRESS",
+    "ticket_priority": "HIGH",
+    "project_id": "uuid",
+    "project_name": "Q1 Campaign",
+    "assigned_to": "uuid",
+    "assignee_name": "John Doe",
+    "assignee_email": "john@example.com",
+    "iteration_count": 3,
+    "delivery_datetime": null,
+    "last_updated": "2026-01-13T10:00:00.000Z"
+  }
+]
+```
+
+### Get Alert Statistics
+- **Method:** `GET`
+- **URL:** `/alerts/statistics`
+- **Response (200):**
+```json
+{
+  "total_alerts": 25,
+  "active_alerts": 15,
+  "by_reason": {
+    "excessive_iterations": 8,
+    "sla_breach": 5,
+    "idle_ticket": 2
+  },
+  "by_project": [
+    {
+      "project_id": "uuid",
+      "project_name": "Q1 Campaign",
+      "alert_count": 7
+    }
+  ]
+}
+```
+
+### Get Recent Alerts
+- **Method:** `GET`
+- **URL:** `/alerts/recent?hours=24`
+- **Query Parameters**:
+  - `hours`: number (default 24)
+- **Response (200):** Array of alerts (same format as `/alerts`)
+
+### Get Active Alerts Count
+- **Method:** `GET`
+- **URL:** `/alerts/count`
+- **Response (200):**
+```json
+{
+  "count": 15
+}
+```
+- **Usage**: For dashboard badges/notifications
+
+### Get Alerts for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/alerts`
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "reason": "EXCESSIVE_ITERATIONS",
+    "triggered_at": "2026-01-13T12:00:00.000Z"
+  }
+]
+```
+
+### Get Alerts for Project
+- **Method:** `GET`
+- **URL:** `/projects/:id/alerts`
+- **Response (200):** Array of alerts with full details (same format as `/alerts`)
+
+### Manual Alert Scan (Admin Only)
+- **Method:** `POST`
+- **URL:** `/alerts/scan`
+- **Description**: Manually trigger alert scan (useful for testing or immediate check)
+- **Response (200):**
+```json
+{
+  "message": "Alert scan completed",
+  "new_alerts": {
+    "excessive_iterations": 2,
+    "sla_breach": 1,
+    "idle_ticket": 0
+  }
+}
+```
+
+### Resolve Alerts for Ticket (Admin Only)
+- **Method:** `POST`
+- **URL:** `/tickets/:id/alerts/resolve`
+- **Description**: Manually resolve all alerts for a ticket
+- **Response (200):**
+```json
+{
+  "message": "Alerts resolved successfully"
+}
+```
+
+---
+
+## Dashboard Integration
+
+**Red Alerts are designed for dashboards:**
+- Use `/alerts/statistics` for KPI cards
+- Use `/alerts/count` for notification badges
+- Use `/alerts/recent` for "Recent Activity" widgets
+- Use `/alerts?project_id=...` for project-specific views
+- Filter by `reason` for alert-type-specific views
+
+**Color Coding Recommendations:**
+- Excessive Iterations: 🟠 Orange (#FF9800)
+- SLA Breach: 🔴 Red (#F44336)
+- Idle Ticket: 🟡 Yellow (#FFC107)
+
+**Visibility:**
+- **Admin**: Can see all alerts across all projects
+- **PM**: Can see alerts for their projects only
+- **Employee**: Cannot see red alerts (dashboard permissions)
+
 ## Auth
 | Method | Endpoint | Description | Body |
 | :--- | :--- | :--- | :--- |
@@ -736,5 +1006,432 @@ Base URL: `http://localhost:3000`
   - `400`: Ticket has no active assignment to unassign
 - **Errors:**
   - `404`: Ticket not found
+
+---
+
+## Iterations & Approvals
+
+**Critical Business Logic:**
+- **Iterations**: Track revision cycles. A ticket starts at Iteration 1. Each rejection creates a new iteration.
+- **FTR (First Time Right)**: TRUE only if ticket is approved in Iteration 1. Once rejected, FTR is permanently FALSE.
+- **State Machine**: Iterations have outcomes: PENDING → APPROVED or REVISION_REQUIRED
+- **Transactional**: Approval/rejection operations are atomic (updates iteration, creates FTR metric, updates ticket status, creates approval record)
+
+### Create Iteration (Manual)
+- **Method:** `POST`
+- **URL:** `/tickets/:id/iterations`
+- **Description:** Manually create a new iteration for a ticket. Usually iterations are auto-created on rejection.
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "ticket_id": "uuid",
+  "iteration_number": 2,
+  "outcome": "PENDING",
+  "created_at": "2026-01-13T00:00:00.000Z"
+}
+```
+- **Errors:**
+  - `404`: Ticket not found
+
+### Get All Iterations for Ticket
+- **Method:** `GET`
+- **URL:** `/tickets/:id/iterations`
+- **Description:** Returns all iterations for a ticket ordered by iteration_number ASC
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_number": 1,
+    "outcome": "REVISION_REQUIRED",
+    "created_at": "2026-01-13T10:00:00.000Z"
+  },
+  {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_number": 2,
+    "outcome": "PENDING",
+    "created_at": "2026-01-13T12:00:00.000Z"
+  }
+]
+```
+
+### Approve Ticket
+- **Method:** `POST`
+- **URL:** `/tickets/:id/approve`
+- **Description:** Approve the current iteration and mark ticket as approved
+- **Body:**
+```json
+{
+  "approved_by": "uuid"
+}
+```
+- **Response (200):**
+```json
+{
+  "message": "Ticket approved successfully",
+  "iteration": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_number": 1,
+    "outcome": "APPROVED",
+    "created_at": "2026-01-13T10:00:00.000Z"
+  },
+  "approval": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "approved_by": "uuid",
+    "status": "APPROVED",
+    "approved_at": "2026-01-13T14:00:00.000Z"
+  },
+  "ftr": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "first_time_right": true,
+    "score": 100
+  }
+}
+```
+- **Side Effects:**
+  - Current iteration outcome → APPROVED
+  - FTR calculated (TRUE if iteration 1, FALSE otherwise)
+  - Ticket status → APPROVED
+  - Creates approval record with status APPROVED
+  - Emits ITERATION_APPROVED event (triggers Slack/Email notifications)
+- **Validation Errors:**
+  - `400`: approved_by is required
+  - `400`: No iteration found for this ticket. Create an iteration first.
+  - `400`: Current iteration is not pending. Cannot approve.
+- **Errors:**
+  - `404`: Ticket not found
+
+### Reject Ticket / Request Revision
+- **Method:** `POST`
+- **URL:** `/tickets/:id/reject`
+- **Description:** Reject the current iteration and create a new iteration for revision
+- **Body:**
+```json
+{
+  "approved_by": "uuid",
+  "reason": "Missing authentication logic"
+}
+```
+- **Response (200):**
+```json
+{
+  "message": "Ticket rejected. Revision required. New iteration created.",
+  "old_iteration": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_number": 1,
+    "outcome": "REVISION_REQUIRED",
+    "created_at": "2026-01-13T10:00:00.000Z"
+  },
+  "new_iteration": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "iteration_number": 2,
+    "outcome": "PENDING",
+    "created_at": "2026-01-13T14:00:00.000Z"
+  },
+  "approval": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "approved_by": "uuid",
+    "status": "REJECTED",
+    "approved_at": "2026-01-13T14:00:00.000Z"
+  },
+  "ftr": {
+    "id": "uuid",
+    "ticket_id": "uuid",
+    "first_time_right": false,
+    "score": 0
+  }
+}
+```
+- **Side Effects:**
+  - Current iteration outcome → REVISION_REQUIRED
+  - Creates NEW iteration with iteration_number + 1
+  - FTR locked to FALSE permanently
+  - Ticket status → REVISION_REQUIRED
+  - Creates approval record with status REJECTED
+  - Emits ITERATION_REJECTED event (triggers Slack/Email notifications with reason)
+- **Validation Errors:**
+  - `400`: approved_by is required
+  - `400`: No iteration found for this ticket. Create an iteration first.
+  - `400`: Current iteration is not pending. Cannot reject.
+- **Errors:**
+  - `404`: Ticket not found
+
+---
+
+## Analytics
+
+**Note:** All analytics are computed server-side. Frontend just renders the data. Queries are optimized for performance.
+
+### Get Overview Analytics
+- **Method:** `GET`
+- **URL:** `/analytics/overview`
+- **Description:** System-wide KPIs for dashboard
+- **Response (200):**
+```json
+{
+  "summary": {
+    "total_tickets": 150,
+    "total_completed": 100,
+    "total_in_progress": 30,
+    "total_pending": 20,
+    "completion_rate": 66.67
+  },
+  "ftr_metrics": {
+    "total_ftr": 80,
+    "total_non_ftr": 20,
+    "ftr_percentage": 80.0
+  },
+  "resolution_metrics": {
+    "avg_resolution_hours": 48.5,
+    "median_resolution_hours": 36.0,
+    "fastest_resolution_hours": 4.0,
+    "slowest_resolution_hours": 120.0
+  },
+  "iterations_metrics": {
+    "avg_iterations_per_ticket": 1.3
+  },
+  "status_distribution": [
+    { "status": "CREATED", "count": 10 },
+    { "status": "ASSIGNED", "count": 15 },
+    { "status": "IN_PROGRESS", "count": 30 },
+    { "status": "APPROVED", "count": 50 },
+    { "status": "DELIVERED", "count": 45 }
+  ],
+  "priority_distribution": [
+    { "priority": "LOW", "count": 30 },
+    { "priority": "MEDIUM", "count": 60 },
+    { "priority": "HIGH", "count": 40 },
+    { "priority": "URGENT", "count": 20 }
+  ],
+  "recent_activity": {
+    "tickets_created_today": 5,
+    "tickets_completed_today": 8
+  }
+}
+```
+- **Use Cases:**
+  - Dashboard KPI cards
+  - Status/priority pie charts
+  - FTR gauge visualization
+
+### Get Sprint Analytics
+- **Method:** `GET`
+- **URL:** `/analytics/sprints/:sprintId`
+- **Description:** Sprint-specific metrics with burndown data
+- **Response (200):**
+```json
+{
+  "sprint": {
+    "id": "uuid",
+    "name": "Sprint 5",
+    "start_date": "2026-01-01T00:00:00.000Z",
+    "end_date": "2026-01-15T00:00:00.000Z"
+  },
+  "total_tickets": 25,
+  "completed_tickets": 18,
+  "in_progress_tickets": 5,
+  "pending_tickets": 2,
+  "completion_rate": 72.0,
+  "avg_iterations": 1.4,
+  "ftr_count": 15,
+  "ftr_percentage": 83.33,
+  "timeline": [
+    { "date": "2026-01-01", "completed_count": 0, "cumulative_count": 0 },
+    { "date": "2026-01-02", "completed_count": 2, "cumulative_count": 2 },
+    { "date": "2026-01-03", "completed_count": 3, "cumulative_count": 5 },
+    { "date": "2026-01-04", "completed_count": 1, "cumulative_count": 6 }
+  ],
+  "velocity": {
+    "tickets_per_day": 1.2,
+    "estimated_completion_date": "2026-01-12T00:00:00.000Z",
+    "on_track": true
+  }
+}
+```
+- **Use Cases:**
+  - Sprint burndown charts (use timeline data)
+  - Velocity tracking
+  - Sprint completion prediction
+
+### Get All Users Performance (Leaderboard)
+- **Method:** `GET`
+- **URL:** `/analytics/users`
+- **Description:** Performance metrics for all users with ranking
+- **Response (200):**
+```json
+{
+  "users": [
+    {
+      "user_id": "uuid",
+      "user_name": "John Doe",
+      "user_email": "john@butler.com",
+      "total_tickets": 45,
+      "completed_tickets": 40,
+      "in_progress_tickets": 3,
+      "pending_tickets": 2,
+      "avg_iterations": 1.2,
+      "ftr_count": 35,
+      "ftr_percentage": 87.5,
+      "avg_resolution_hours": 32.5,
+      "rank": 1,
+      "active_streak_days": 15
+    }
+  ],
+  "leaderboard": [
+    {
+      "user_id": "uuid",
+      "user_name": "John Doe",
+      "ftr_percentage": 87.5,
+      "avg_resolution_hours": 32.5,
+      "rank": 1
+    }
+  ]
+}
+```
+- **Use Cases:**
+  - Team leaderboard
+  - Performance comparison
+  - Gamification
+
+### Get User Performance
+- **Method:** `GET`
+- **URL:** `/analytics/users/:userId`
+- **Description:** Individual user performance metrics
+- **Response (200):**
+```json
+{
+  "user_id": "uuid",
+  "user_name": "John Doe",
+  "user_email": "john@butler.com",
+  "total_tickets": 45,
+  "completed_tickets": 40,
+  "in_progress_tickets": 3,
+  "pending_tickets": 2,
+  "avg_iterations": 1.2,
+  "ftr_count": 35,
+  "ftr_percentage": 87.5,
+  "avg_resolution_hours": 32.5,
+  "rank": 1,
+  "active_streak_days": 15
+}
+```
+- **Use Cases:**
+  - User profile dashboard
+  - Performance reviews
+
+---
+
+## Response Sheets (Client Reporting)
+
+**Critical Business Rule:** Response sheets are **SNAPSHOTS**. Once generated, the data is immutable and stored in JSONB. Historical sheets never recompute.
+
+### Generate Response Sheet
+- **Method:** `POST`
+- **URL:** `/response-sheets`
+- **Body:**
+```json
+{
+  "project_id": "uuid"
+}
+```
+- **Response (201):**
+```json
+{
+  "id": "uuid",
+  "project_id": "uuid",
+  "snapshot_data": {
+    "project": { "id": "uuid", "name": "Q1 Campaign", "status": "ACTIVE", "created_at": "..." },
+    "client": { "id": "uuid", "name": "Acme Corp" },
+    "pocs": [...],
+    "team": [...],
+    "tickets": [...],
+    "summary": {
+      "total_tickets": 50,
+      "completed_tickets": 45,
+      "in_progress_tickets": 3,
+      "pending_tickets": 2,
+      "ftr_percentage": 85.0,
+      "avg_resolution_hours": 36.5,
+      "avg_iterations": 1.3
+    }
+  },
+  "generated_at": "2026-01-13T14:00:00.000Z",
+  "sent_at": null,
+  "sent_to": [],
+  "avg_resolution_time": 36.5
+}
+```
+- **Use Cases:**
+  - Monthly client reports
+  - Historical project auditing
+  - Compliance documentation
+
+### Send Response Sheet
+- **Method:** `POST`
+- **URL:** `/response-sheets/:id/send`
+- **Body:**
+```json
+{
+  "email_addresses": ["client@example.com", "pm@butler.com"]
+}
+```
+- **Response (200):**
+```json
+{
+  "message": "Response sheet sent successfully"
+}
+```
+- **Note:** Updates `sent_at` and `sent_to` fields
+
+### Get Response Sheet by ID
+- **Method:** `GET`
+- **URL:** `/response-sheets/:id`
+- **Response (200):**
+```json
+{
+  "id": "uuid",
+  "project_id": "uuid",
+  "snapshot_data": { ... },
+  "generated_at": "2026-01-13T14:00:00.000Z",
+  "sent_at": "2026-01-13T15:00:00.000Z",
+  "sent_to": ["client@example.com"],
+  "avg_resolution_time": 36.5
+}
+```
+
+### List Response Sheets
+- **Method:** `GET`
+- **URL:** `/response-sheets?project_id=uuid`
+- **Query Parameters:**
+  - `project_id` (optional): Filter by project
+- **Response (200):**
+```json
+[
+  {
+    "id": "uuid",
+    "project_id": "uuid",
+    "generated_at": "2026-01-13T14:00:00.000Z",
+    "sent_at": "2026-01-13T15:00:00.000Z",
+    "project_name": "Q1 Campaign",
+    "client_name": "Acme Corp",
+    "total_tickets": 50,
+    "ftr_percentage": 85.0
+  }
+]
+```
+- **Note:** List view returns summary fields extracted from snapshot_data for performance
+
+---
+
+**End of API Documentation**
 
 

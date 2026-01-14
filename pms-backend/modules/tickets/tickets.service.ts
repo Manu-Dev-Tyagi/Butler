@@ -3,6 +3,7 @@ import {
     Ticket,
     TicketAssignment,
     TicketPriority,
+    TicketStatus,
     CreateTicketDTO,
     UpdateTicketDTO,
     AssignTicketDTO,
@@ -66,7 +67,22 @@ export class TicketsService {
             throw new Error('Invalid priority value');
         }
 
+        if (data.status && !Object.values(TicketStatus).includes(data.status)) {
+            throw new Error('Invalid status value');
+        }
+
         return this.repository.update(id, data);
+    }
+
+    /**
+     * Update ticket status only
+     */
+    async updateTicketStatus(id: string, status: TicketStatus): Promise<Ticket | null> {
+        if (!Object.values(TicketStatus).includes(status)) {
+            throw new Error('Invalid status value');
+        }
+
+        return this.repository.updateStatus(id, status);
     }
 
     /**

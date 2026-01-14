@@ -4,6 +4,47 @@ import { pool } from '@database/connection';
 import { Project, ProjectPOC, ProjectMember } from './projects.types';
 
 export class ProjectsRepository extends BaseRepository<Project> {
+    async findAll(): Promise<Project[]> {
+        const result = await this.execute(
+            `SELECT p.*, c.name as client_name 
+             FROM projects p 
+             LEFT JOIN clients c ON p.client_id = c.id
+             ORDER BY p.created_at DESC`
+        );
+
+        const projects = result.rows;
+        for (const project of projects) {
+            const [pocs, members] = await Promise.all([
+                this.findPOCsByProject(project.id),
+                this.findMembersByProject(project.id)
+            ]);
+            project.pocs = pocs;
+            project.members = members.map((m: any) => m.user_id);
+        }
+
+        return projects;
+    }
+
+    async findById(id: string): Promise<Project | null> {
+        const result = await this.execute(
+            `SELECT p.*, c.name as client_name 
+             FROM projects p 
+             LEFT JOIN clients c ON p.client_id = c.id 
+             WHERE p.id = $1`,
+            [id]
+        );
+        const project = result.rows[0] || null;
+        if (project) {
+            const [pocs, members] = await Promise.all([
+                this.findPOCsByProject(id),
+                this.findMembersByProject(id)
+            ]);
+            project.pocs = pocs;
+            project.members = members.map((m: any) => m.user_id);
+        }
+        return project;
+    }
+
     constructor() {
         super('projects');
     }

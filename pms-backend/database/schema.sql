@@ -175,19 +175,50 @@ CREATE TABLE red_alerts (
     triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 18. NOTIFICATIONS
-CREATE TABLE notifications (
+-- 18. EVENTS (Event Queue for Cron-Based Processing)
+CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ticket_id UUID REFERENCES tickets(id),
-    channel VARCHAR(50) CHECK (channel IN ('SLACK', 'EMAIL', 'IN_APP')),
-    status VARCHAR(50) DEFAULT 'PENDING',
-    sent_at TIMESTAMP
+    event_type VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id UUID NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'DONE', 'FAILED')),
+    retry_count INT DEFAULT 0,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP
 );
 
--- 19. RESPONSE_SHEETS
+CREATE INDEX idx_events_status ON events(status);
+CREATE INDEX idx_events_entity ON events(entity_type, entity_id);
+CREATE INDEX idx_events_created_at ON events(created_at);
+
+-- 19. NOTIFICATIONS (In-App Notifications)
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id),
+    ticket_id UUID REFERENCES tickets(id),
+    title VARCHAR(255),
+    message TEXT,
+    event_type VARCHAR(100),
+    entity_id UUID,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notifications_user_read ON notifications(user_id, is_read);
+CREATE INDEX idx_notifications_created ON notifications(created_at);
+
+-- 20. RESPONSE_SHEETS
 CREATE TABLE response_sheets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     project_id UUID NOT NULL REFERENCES projects(id),
+    snapshot_data JSONB NOT NULL,
     generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    sent_at TIMESTAMP,
+    sent_to TEXT[],
     avg_resolution_time DECIMAL(6,2)
 );
+
+CREATE INDEX idx_response_sheets_project_id ON response_sheets(project_id);
+CREATE INDEX idx_response_sheets_generated_at ON response_sheets(generated_at);

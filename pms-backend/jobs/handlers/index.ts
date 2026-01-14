@@ -1,9 +1,13 @@
 import { handleTicketAssigned } from './ticket.handler';
 import { handleProjectCreated } from './project.handler';
+import { handleIterationSubmitted, handleIterationApproved, handleIterationRejected } from './iteration.handler';
 
 export const handlers: Record<string, (event: any) => Promise<void>> = {
     'TICKET_ASSIGNED': handleTicketAssigned,
     'PROJECT_CREATED': handleProjectCreated,
+    'ITERATION_SUBMITTED': handleIterationSubmitted,
+    'ITERATION_APPROVED': handleIterationApproved,
+    'ITERATION_REJECTED': handleIterationRejected,
     // Add more handlers here
 };
 

@@ -7,7 +7,16 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npm run dev:api",
     "dev:api": "nodemon --exec ts-node -r tsconfig-paths/register apps/api/server.ts",
-    "dev:worker": "nodemon --exec ts-node -r tsconfig-paths/register apps/worker/worker.ts"
+    "dev:api:direct": "ts-node -r tsconfig-paths/register apps/api/server.ts",
+    "dev:worker": "nodemon --exec ts-node -r tsconfig-paths/register apps/worker/worker.ts",
+    "dev:worker:direct": "ts-node -r tsconfig-paths/register apps/worker/worker.ts",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:worker\"",
+    "dev:all:direct": "concurrently \"npm run dev:api:direct\" \"npm run dev:worker:direct\"",
+    "build": "tsc",
+    "start:api": "node dist/apps/api/server.js",
+    "start:worker": "node dist/apps/worker/worker.js",
+    "migrate": "ts-node -r tsconfig-paths/register database/run-migrations.ts",
+    "seed": "ts-node -r tsconfig-paths/register database/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,21 +31,24 @@
     "@types/node": "^25.0.7",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.16.0",
+    "concurrently": "^9.2.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "axios": "^1.13.2",
+    "@types/nodemailer": "^7.0.5",
+    "axios": "^0.27.2",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
+    "croner": "^9.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
-    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.12",
     "pg": "^8.16.3"
   }
 }

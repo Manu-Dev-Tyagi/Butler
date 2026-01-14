@@ -16,18 +16,21 @@ import {
 } from './iterations.types';
 import { TicketsRepository } from '@modules/tickets/tickets.repository';
 import { TicketStatus } from '@modules/tickets/tickets.types';
+import { IterationEventPublisher, IterationEventType } from '@events/publishers/iteration.publisher';
 
 export class IterationsService {
     private readonly iterationsRepo: IterationsRepository;
     private readonly approvalsRepo: ApprovalsRepository;
     private readonly ftrRepo: FTRMetricsRepository;
     private readonly ticketsRepo: TicketsRepository;
+    private readonly iterationPublisher: IterationEventPublisher;
 
     constructor() {
         this.iterationsRepo = new IterationsRepository();
         this.approvalsRepo = new ApprovalsRepository();
         this.ftrRepo = new FTRMetricsRepository();
         this.ticketsRepo = new TicketsRepository();
+        this.iterationPublisher = new IterationEventPublisher();
     }
 
     /**
@@ -46,7 +49,22 @@ export class IterationsService {
             throw new Error('Iteration already exists for this ticket');
         }
 
-        return this.iterationsRepo.createIteration(ticketId, 1);
+        const iteration = await this.iterationsRepo.createIteration(ticketId, 1);
+
+        // Fetch active assignment to get actedByUserId (to respect 'no controller changes' rule)
+        const activeAssignment = await this.ticketsRepo.getActiveAssignment(ticketId);
+        const actedByUserId = activeAssignment ? activeAssignment.user_id : '00000000-0000-0000-0000-000000000000'; // Fallback if system user or unassigned
+
+        // Emit Event
+        await this.iterationPublisher.emitIterationEvent(IterationEventType.ITERATION_SUBMITTED, {
+            iterationId: iteration.id,
+            ticketId: ticketId,
+            actedByUserId: actedByUserId,
+            status: 'SUBMITTED',
+            occurredAt: new Date(),
+        });
+
+        return iteration;
     }
 
     /**
@@ -61,7 +79,22 @@ export class IterationsService {
         const currentIteration = await this.iterationsRepo.getCurrentIteration(ticketId);
         const nextIterationNumber = currentIteration ? currentIteration.iteration_number + 1 : 1;
 
-        return this.iterationsRepo.createIteration(ticketId, nextIterationNumber);
+        const iteration = await this.iterationsRepo.createIteration(ticketId, nextIterationNumber);
+
+        // Fetch active assignment to get actedByUserId
+        const activeAssignment = await this.ticketsRepo.getActiveAssignment(ticketId);
+        const actedByUserId = activeAssignment ? activeAssignment.user_id : '00000000-0000-0000-0000-000000000000';
+
+        // Emit Event
+        await this.iterationPublisher.emitIterationEvent(IterationEventType.ITERATION_SUBMITTED, {
+            iterationId: iteration.id,
+            ticketId: ticketId,
+            actedByUserId: actedByUserId,
+            status: 'SUBMITTED',
+            occurredAt: new Date(),
+        });
+
+        return iteration;
     }
 
     /**
@@ -138,6 +171,17 @@ export class IterationsService {
             );
 
             await client.query('COMMIT');
+            client.release();
+
+            // 8. Emit Event (Async, outside transaction)
+            await this.iterationPublisher.emitIterationEvent(IterationEventType.ITERATION_APPROVED, {
+                iterationId: currentIteration.id,
+                ticketId: ticketId,
+                actedByUserId: data.approved_by,
+                approverUserId: data.approved_by,
+                status: 'APPROVED',
+                occurredAt: new Date(),
+            });
 
             // Fetch updated iteration
             const updatedIteration = await this.iterationsRepo.findById(currentIteration.id);
@@ -148,10 +192,11 @@ export class IterationsService {
                 ftr: ftrResult.rows[0],
             };
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (client) {
+                await client.query('ROLLBACK');
+                client.release();
+            }
             throw error;
-        } finally {
-            client.release();
         }
     }
 
@@ -232,6 +277,18 @@ export class IterationsService {
             );
 
             await client.query('COMMIT');
+            client.release();
+
+            // 8. Emit Event (Async, outside transaction)
+            await this.iterationPublisher.emitIterationEvent(IterationEventType.ITERATION_REJECTED, {
+                iterationId: currentIteration.id,
+                ticketId: ticketId,
+                actedByUserId: data.approved_by,
+                approverUserId: data.approved_by,
+                status: 'REJECTED',
+                remarks: data.reason,
+                occurredAt: new Date(),
+            });
 
             // Fetch updated iteration
             const updatedOldIteration = await this.iterationsRepo.findById(currentIteration.id);
@@ -243,10 +300,11 @@ export class IterationsService {
                 ftr: ftrResult.rows[0],
             };
         } catch (error) {
-            await client.query('ROLLBACK');
+            if (client) {
+                await client.query('ROLLBACK');
+                client.release();
+            }
             throw error;
-        } finally {
-            client.release();
         }
     }
 

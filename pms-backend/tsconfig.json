@@ -52,6 +52,6 @@
     "integrations/**/*",
     "jobs/**/*",
     "analytics/**/*",
-    "tests/**/*",
+    "tests/**/*"
   ]
 }

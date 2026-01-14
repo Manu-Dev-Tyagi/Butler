@@ -75,6 +75,7 @@ export interface UpdateTicketDTO {
     ad_name?: string;
     creative_count?: number;
     sprint_id?: string;
+    status?: TicketStatus;
 }
 
 // Assign Ticket DTO

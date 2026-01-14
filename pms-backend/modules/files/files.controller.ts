@@ -72,4 +72,24 @@ router.get('/tickets/:id/files', async (req: Request, res: Response) => {
     }
 });
 
+// Delete File (DELETE /files/:id)
+router.delete('/files/:id', async (req: Request, res: Response) => {
+    try {
+        const fileId = req.params.id as string;
+        const success = await filesService.deleteFile(fileId);
+
+        if (success) {
+            res.status(204).send();
+        } else {
+            res.status(404).json({ error: 'File not found' });
+        }
+    } catch (error: any) {
+        if (error.message === 'File not found') {
+            res.status(404).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
 export default router;

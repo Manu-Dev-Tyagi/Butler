@@ -266,3 +266,191 @@ The ticket state machine is the single source of truth.
 266:     *   **Process Management**:
 267:         *   Added `npm run dev:api` and `npm run dev:worker` for local development.
 268:         *   Worker process now handles all long-running event processing independently.
+
+*   **[2026-01-13] Analytics & Reporting (STEP 9 - FINAL FEATURE)**:
+    *   **Implemented Analytics Module** (Frontend-Optimized KPI System):
+        *   `modules/analytics/analytics.types.ts` - TypeScript interfaces for all analytics endpoints
+            *   `OverviewAnalytics` - System-wide metrics with 7 nested sections
+            *   `SprintAnalytics` - Sprint-specific metrics with timeline data for burndown charts
+            *   `UserPerformance` & `UsersAnalytics` - Individual and team performance with leaderboard
+        *   `modules/analytics/analytics.repository.ts` - Optimized read-only SQL queries
+            *   **Overview**: 7 separate aggregate queries (summary, FTR, resolution, iterations, status/priority distributions, recent activity)
+            *   **Sprint**: Timeline generation with daily completion tracking, velocity calculation
+            *   **User**: Individual performance tracking, leaderboard with ranking, active streak calculation
+        *   `modules/analytics/analytics.service.ts` - Business logic with error handling
+        *   `modules/analytics/analytics.controller.ts` - REST API endpoints (4 routes)
+            *   `GET /analytics/overview` - System-wide analytics
+            *   `GET /analytics/sprints/:sprintId` - Sprint-specific analytics
+            *   `GET /analytics/users` - All users with leaderboard
+            *   `GET /analytics/users/:userId` - Individual user performance
+    *   **Key Performance Indicators (KPIs)**:
+        *   **FTR (First Time Right) %** - Percentage of tickets approved in first iteration
+        *   **Average Resolution Time** - Mean hours from creation to approval (with median, fastest, slowest)
+        *   **Iterations per Ticket** - Average number of iterations required
+        *   **Status/Priority Distributions** - Breakdown by ticket status and priority
+        *   **Velocity Tracking** - Tickets per day, estimated completion dates, on-track indicators
+        *   **Recent Activity** - Today's ticket creation/completion metrics
+    *   **Frontend-Optimized Design Decisions**:
+        *   Nested objects match React component hierarchy (easy prop drilling)
+        *   Pre-calculated percentages and rates (no frontend math required)
+        *   Distribution arrays ready for chart libraries (D3.js, Chart.js, Recharts)
+        *   Timeline data with cumulative values for burndown/line charts
+        *   Leaderboard with explicit rank field for sorting/gamification
+    *   **Database Optimization**:
+        *   Read-only queries with aggregate functions (COUNT, AVG, SUM, PERCENTILE_CONT)
+        *   Minimal JOIN operations to reduce query load
+        *   Common Table Expressions (CTEs) for complex calculations
+        *   Date-based grouping using generate_series for timeline data
+    *   **Testing**:
+        *   Created `tests/integration/analytics.test.ts` - 16 comprehensive test cases
+        *   Coverage: All endpoints, authentication, validation, error handling
+    *   **Key Technical Achievements**:
+        *   All analytics computed server-side (frontend just renders)
+        *   Zero N+1 query problems (optimized with aggregations)
+        *   Supports real-time dashboard updates (queries are fast)
+        *   Scalable to large datasets (indexed columns, efficient JOINs)
+
+*   **[2026-01-13] Response Sheets (CLIENT REPORTING FEATURE)**:
+    *   **Implemented Response Sheets Module** (Snapshot-Based Client Reports):
+        *   `modules/response-sheets/response-sheets.types.ts` - Comprehensive snapshot data structure
+            *   `ResponseSheetSnapshot` - Complete project state (project, client, POCs, team, tickets, summary metrics)
+            *   Snapshot includes: all tickets with iterations/FTR status, team assignments, resolution times, summary KPIs
+        *   `modules/response-sheets/response-sheets.repository.ts` - Snapshot generation and persistence
+            *   `generateSnapshot()` - Single-point-in-time data capture (NEVER recomputed)
+            *   Queries: Project details, POCs, team members, all tickets with full history, calculated metrics
+            *   JSONB storage for complete snapshot preservation
+        *   `modules/response-sheets/response-sheets.service.ts` - Business logic with email placeholder
+            *   Email sending ready for integration (SendGrid/AWS SES)
+            *   Email validation and recipient management
+        *   `modules/response-sheets/response-sheets.controller.ts` - 4 REST endpoints
+            *   `POST /response-sheets` - Generate new sheet for project
+            *   `POST /response-sheets/:id/send` - Email sheet to recipients
+            *   `GET /response-sheets/:id` - Retrieve sheet by ID
+            *   `GET /response-sheets?project_id=...` - List all or filter by project
+    *   **Critical Business Rule**: **SNAPSHOT DATA**
+        *   Sheet generated = permanent snapshot stored in `snapshot_data` JSONB column
+        *   Historical sheets NEVER recomputed (data immutability)
+        *   Sent tracking: `sent_at` timestamp and `sent_to` email array
+    *   **Snapshot Data Structure**:
+        *   **Project Info**: ID, name, status, creation date
+        *   **Client Info**: ID, name
+        *   **POCs**: Name, email, phone for all project POCs
+        *   **Team Members**: Current assignees with roles and assignment dates
+        *   **Tickets**: ALL project tickets with status, priority, iterations, FTR, resolution times, assignees
+        *   **Summary Metrics**: Total/completed/in-progress/pending counts, FTR%, avg resolution, avg iterations
+    *   **Database Updates**:
+        *   Updated `response_sheets` table schema with JSONB column
+        *   Created migration `003_update_response_sheets.sql`
+        *   Indexes on project_id and generated_at for performance
+    *   **Key Technical Decisions**:
+        *   JSONB for flexible snapshot storage (queryable + full data preservation)
+        *   Email service abstracted (placeholder for SendGrid/SES/etc.)
+        *   Snapshot generation happens at POST time (never lazy-loaded)
+        *   List view optimized with JSONB field extraction (no full snapshot load)
+    *   **Use Cases**:
+        *   Client progress reports (monthly/weekly)
+        *   Historical project auditing
+        *   Performance review documentation
+        *   Compliance and record-keeping
+
+*   **[2026-01-13] External Integrations (SLACK & EMAIL NOTIFICATIONS)**:
+    *   **Implemented Slack Integration** (`integrations/slack.service.ts`):
+        *   Uses Slack Incoming Webhooks for sending notifications
+        *   **Configuration**: `SLACK_ENABLED=true`, `SLACK_WEBHOOK_URL` in `.env`
+        *   **Methods**:
+            *   `notifyTicketAssigned()` - Rich card with ticket details, priority, assignee
+            *   `notifyIterationSubmitted()` - Draft submitted notification with iteration number
+            *   `notifyIterationApproved()` - Approval with FTR status badge
+            *   `notifyIterationRejected()` - Revision required with rejection reason
+            *   `notifyProjectCreated()` - New project announcement with team size
+        *   **Features**: Priority color coding, emoji indicators, rich attachments
+        *   **Error Handling**: Non-blocking (failures logged but don't break business logic)
+    *   **Implemented Email Integration** (`integrations/email.service.ts`):
+        *   Uses Nodemailer (supports SMTP, Gmail, SendGrid, AWS SES)
+        *   **Configuration**: `EMAIL_ENABLED=true`, provider-specific variables in `.env`
+        *   **Providers Supported**:
+            *   Generic SMTP (configurable host/port/auth)
+            *   Gmail (with App Password)
+            *   SendGrid (API key authentication)
+        *   **Methods**:
+            *   `sendTicketAssignedEmail()` - HTML email with ticket details
+            *   `sendIterationSubmittedEmail()` - Submission confirmation
+            *   `sendIterationApprovedEmail()` - Approval notification with FTR badge
+            *   `sendIterationRejectedEmail()` - Revision request with reason
+            *   `sendProjectCreatedEmail()` - Project kickoff notification (bulk)
+        *   **Features**: Professional HTML templates, responsive design, plain text fallback
+        *   **Error Handling**: Non-blocking (failures logged but don't break business logic)
+    *   **Updated Event Handlers** (All handlers in `jobs/handlers/*`):
+        *   **`iteration.handler.ts`**: Fetches ticket/user/approver details from DB, sends Slack + Email
+        *   **`ticket.handler.ts`**: Fetches user/project details, sends Slack + Email on assignment
+        *   **`project.handler.ts`**: Fetches client/members, sends Slack + bulk Email to team
+        *   **Database Queries**: Optimized joins to fetch all necessary data (names, emails) in single queries
+        *   **Graceful Degradation**: If users/tickets not found, logs warning and skips notifications
+    *   **Testing**:
+        *   Created `tests/integration/test-integrations.ts` - Standalone service test
+        *   All 17 iterations tests passed with real integrations enabled
+        *   Worker processes events asynchronously without blocking API
+    *   **Key Design Decisions**:
+        *   Integrations are **disabled by default** (opt-in via `.env`)
+        *   Failures in Slack/Email **never break business logic** (try-catch with logging)
+        *   Worker fetches additional context (names, emails) before calling integrations
+        *   All notification methods return `Promise<void>` (fire-and-forget)
+        *   Configuration documented in `.env.example` with setup instructions
+    *   **Setup Instructions** (in `.env.example`):
+        *   Slack: Create app → Enable Incoming Webhooks → Add to workspace
+        *   Email (Gmail): Enable 2FA → Generate App Password
+        *   Email (SendGrid): Create API key with Mail Send permissions
+        *   Email (SMTP): Generic SMTP server credentials
+
+*   **[2026-01-13] Red Alerts System (ALERTING & GOVERNANCE)**:
+    *   **Implemented Red Alerts Module** (`modules/red-alerts/*`):
+        *   `red-alerts.types.ts` - Enums (`AlertReason`), interfaces, DTOs, statistics types
+        *   `red-alerts.repository.ts` - Database layer with filtering, statistics, and deduplication
+        *   `red-alerts.service.ts` - Business logic with automated alert detection
+        *   `red-alerts.controller.ts` - REST API (8 endpoints)
+    *   **Alert Triggers** (Automated Detection):
+        *   **EXCESSIVE_ITERATIONS**: Ticket has > 2 iterations (multiple revisions = quality issue)
+        *   **SLA_BREACH**: `delivery_datetime` crossed but ticket not completed (APPROVED/DELIVERED/CLOSED)
+        *   **IDLE_TICKET**: No iteration updates for > 48 hours (ticket stuck)
+    *   **Alert Thresholds** (Configurable in service):
+        *   Iteration threshold: 2 (trigger if > 2)
+        *   Idle threshold: 48 hours
+    *   **API Endpoints Implemented**:
+        *   `GET /alerts` - Get all alerts with filtering (reason, project_id, ticket_id, date range)
+        *   `GET /alerts/statistics` - Dashboard KPIs (total, active, by_reason, by_project)
+        *   `GET /alerts/recent?hours=24` - Recent alerts (default last 24 hours)
+        *   `GET /alerts/count` - Active alerts count (for dashboard badges)
+        *   `GET /tickets/:id/alerts` - Alerts for specific ticket
+        *   `GET /projects/:id/alerts` - Alerts for specific project
+        *   `POST /alerts/scan` - Manual alert scan (Admin only)
+        *   `POST /tickets/:id/alerts/resolve` - Manually resolve alerts (Admin only)
+    *   **Automated Alert Scanning** (Cron Job):
+        *   `jobs/handlers/red-alert.handler.ts` - Alert detection and notification logic
+        *   Runs every 30 minutes (configurable in `jobs/cron.ts`)
+        *   Scans all active tickets (status NOT IN CLOSED/CANCELLED/DELIVERED)
+        *   Prevents duplicate alerts (checks `EXISTS` before creating)
+        *   Auto-resolves alerts when conditions fixed
+    *   **Alert Notifications**:
+        *   **Slack**: Rich card with reason, ticket details, priority, assignee
+        *   **Email**: HTML email to Admin and PM with alert summary
+        *   **Recipients**: Admins, PMs, and ticket assignees
+        *   **Summary Notification**: Sent after each scan with total alerts by reason
+    *   **Alert Resolution Logic**:
+        *   EXCESSIVE_ITERATIONS resolved when ticket CLOSED/CANCELLED/DELIVERED
+        *   SLA_BREACH resolved when ticket APPROVED/DELIVERED/CLOSED
+        *   IDLE_TICKET resolved when ticket updated (iteration created)
+    *   **Database Features**:
+        *   Deduplication: `EXISTS` check prevents duplicate alerts for same ticket+reason
+        *   Historical tracking: All alerts preserved even after resolution
+        *   Optimized queries: Uses CTEs and JOINs for efficient filtering
+        *   Statistics aggregation: Pre-calculated counts by reason and project
+    *   **Testing**:
+        *   Created `tests/integration/red-alerts.test.ts` - 13 comprehensive test cases
+        *   Coverage: Alert creation, scanning, filtering, statistics, resolution, deduplication
+    *   **Key Design Decisions**:
+        *   Alerts are **additive** (never automatically deleted, only manual resolution)
+        *   Scan runs every 30 minutes (not real-time to reduce DB load)
+        *   Alerts visible to **Admin and PM only** (not regular employees per requirements)
+        *   Alert reasons are **enum** (extensible for future alert types)
+        *   Statistics cached in query results (no separate caching layer needed yet)
+        *   Worker handles both detection and notification (keeps API fast)

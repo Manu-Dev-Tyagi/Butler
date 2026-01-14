@@ -62,4 +62,15 @@ export class FilesService {
     async getFileCount(ticketId: string): Promise<number> {
         return this.filesRepo.countByTicket(ticketId);
     }
+
+    /**
+     * Delete a file
+     */
+    async deleteFile(fileId: string): Promise<boolean> {
+        const file = await this.filesRepo.findById(fileId);
+        if (!file) {
+            throw new Error('File not found');
+        }
+        return this.filesRepo.delete(fileId);
+    }
 }

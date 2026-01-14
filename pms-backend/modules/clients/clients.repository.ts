@@ -11,14 +11,19 @@ export class ClientsRepository extends BaseRepository<Client> {
     }
 
     async create(client: Partial<Client>): Promise<Client> {
-        const columns = Object.keys(client).join(', ');
-        const values = Object.values(client);
-        const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+        if (!client.name || client.name.trim() === '') {
+            throw new Error('Client name is required');
+        }
 
         const result = await this.execute(
-            `INSERT INTO clients (${columns}) VALUES (${placeholders}) RETURNING *`,
-            values
+            `INSERT INTO clients (name) VALUES ($1) RETURNING *`,
+            [client.name.trim()]
         );
+        
+        if (!result.rows || result.rows.length === 0) {
+            throw new Error('Failed to create client - no data returned');
+        }
+        
         return result.rows[0];
     }
 

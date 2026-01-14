@@ -40,10 +40,38 @@ router.post('/tickets', async (req: Request, res: Response) => {
     }
 });
 
-// List All Tickets
+// List Tickets with optional filters
 router.get('/tickets', async (req: Request, res: Response) => {
     try {
+        const { project_id, sprint_id, status } = req.query;
+        let tickets;
+
+        if (project_id) {
+            tickets = await ticketsService.findByProject(project_id as string);
+        } else if (sprint_id) {
+            tickets = await ticketsService.findBySprint(sprint_id as string);
+        } else {
+            tickets = await ticketsService.findAll();
+        }
+
+        if (status) {
+            tickets = tickets.filter(t => t.status === status);
+        }
+
+        res.json(tickets);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get Tickets Assigned to Me (Mocked for now or use session)
+router.get('/tickets/assigned/me', async (req: Request, res: Response) => {
+    try {
+        // In a real app, we'd get the user ID from the JWT/session
+        // For this task, we'll assume the frontend passes it or we'd need auth middleware
+        // Let's assume for now we list all if not authenticated, or we can add a simple header check
         const tickets = await ticketsService.findAll();
+        // Return a subset or all for now
         res.json(tickets);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
@@ -67,7 +95,7 @@ router.get('/tickets/:id', async (req: Request, res: Response) => {
 // Update Ticket
 router.patch('/tickets/:id', async (req: Request, res: Response) => {
     try {
-        const { title, description, priority, delivery_datetime, delivery_slot, ad_name, creative_count, sprint_id } = req.body;
+        const { title, description, priority, delivery_datetime, delivery_slot, ad_name, creative_count, sprint_id, status } = req.body;
 
         const updateData: UpdateTicketDTO = {};
         if (title !== undefined) updateData.title = title;
@@ -78,6 +106,7 @@ router.patch('/tickets/:id', async (req: Request, res: Response) => {
         if (ad_name !== undefined) updateData.ad_name = ad_name;
         if (creative_count !== undefined) updateData.creative_count = creative_count;
         if (sprint_id !== undefined) updateData.sprint_id = sprint_id;
+        if (status !== undefined) updateData.status = status;
 
         const ticket = await ticketsService.updateTicket(req.params.id as string, updateData);
         if (!ticket) {
@@ -88,6 +117,32 @@ router.patch('/tickets/:id', async (req: Request, res: Response) => {
         res.json(ticket);
     } catch (error: any) {
         if (error.message.includes('empty') || error.message.includes('Invalid')) {
+            res.status(400).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
+// Update Ticket Status (Alternative endpoint for status-only updates)
+router.patch('/tickets/:id/status', async (req: Request, res: Response) => {
+    try {
+        const { status } = req.body;
+
+        if (!status) {
+            res.status(400).json({ error: 'status is required' });
+            return;
+        }
+
+        const ticket = await ticketsService.updateTicketStatus(req.params.id as string, status);
+        if (!ticket) {
+            res.status(404).json({ error: 'Ticket not found' });
+            return;
+        }
+
+        res.json(ticket);
+    } catch (error: any) {
+        if (error.message.includes('Invalid') || error.message.includes('not allowed')) {
             res.status(400).json({ error: error.message });
         } else {
             res.status(500).json({ error: error.message });

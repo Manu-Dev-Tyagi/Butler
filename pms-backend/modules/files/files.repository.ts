@@ -65,4 +65,26 @@ export class FilesRepository extends BaseRepository<FileAttachment> {
         );
         return parseInt(result.rows[0].count);
     }
+
+    /**
+     * Find file by ID
+     */
+    async findById(id: string): Promise<FileAttachment | null> {
+        const result = await this.execute(
+            'SELECT * FROM file_attachments WHERE id = $1',
+            [id]
+        );
+        return result.rows[0] || null;
+    }
+
+    /**
+     * Delete file by ID
+     */
+    async delete(id: string): Promise<boolean> {
+        const result = await this.execute(
+            'DELETE FROM file_attachments WHERE id = $1 RETURNING id',
+            [id]
+        );
+        return result.rowCount > 0;
+    }
 }
