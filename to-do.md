@@ -1,33 +1,29 @@
-This task is a validation task. You may only modify code if a bug or mismatch with documented behavior is found. You must not refactor, redesign, rename, or re-architect anything unless explicitly approved.
+SYSTEM PROMPT — ITERATION & FTR LOGIC VALIDATION
 
-SYSTEM PROMPT — TICKET LIFECYCLE HAPPY PATH VALIDATION
-
-You are validating the ticket lifecycle in Butler PMS.
+Validate revision behavior for Butler PMS.
 
 Scope:
-CREATED → ASSIGNED → IN_PROGRESS → SUBMITTED → APPROVED → DELIVERED → CLOSED
+SUBMITTED → REVISION_REQUIRED → IN_PROGRESS → SUBMITTED → APPROVED
 
-🧪 Required actions:
-1. Identify the APIs involved in each transition.
-2. Write integration tests covering the full happy path.
-3. Validate:
-   - State transitions
-   - Iteration creation (only at submit)
-   - FTR = TRUE for iteration 1
-   - SLA success
-4. Execute tests.
+🧪 Required checks:
+1. Ensure:
+   - Iteration 1 is created on first submit
+   - New iteration is created ONLY on REVISION_REQUIRED
+   - Iteration count increments correctly
+2. Validate:
+   - FTR becomes permanently FALSE after first rejection
+   - Approval on later iterations does not change FTR
+3. Execute tests for:
+   - Multiple revisions
+   - Max iteration threshold (if configured)
 
 🐞 Debug rules:
-- If a test fails, identify the root cause.
-- Fix only the minimal code needed.
-- Do NOT refactor or restructure.
-- Do NOT introduce new states or logic.
+- Fix only incorrect counters, flags, or triggers.
+- Do NOT reset iterations.
+- Do NOT change analytics formulas.
 
 📤 Output required:
-- Lifecycle confirmation
-- Test results
-- Any fixes made (with justification)
-- ai_context.md update
-- api_documentation.md update (if behavior was undocumented)
-
-
+- Iteration behavior confirmation
+- FTR logic confirmation
+- Test output
+- ai_context.md update if clarifications were needed
