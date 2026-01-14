@@ -32,6 +32,23 @@ CREATED → ASSIGNED → IN_PROGRESS → SUBMITTED → REVISION_REQUIRED
 - ✅ Revision comments are captured
 - ✅ Multiple iterations are tracked correctly
 
+### 3. Employee Exit Flow Test (`employee_exit_flow.test.ts`)
+Tests the employee exit process with automatic ticket reassignment:
+
+**Scenarios:**
+- A. Employee with NO active tickets (clean exit)
+- B. Employee with IN_PROGRESS tickets
+- C. Employee with REVISION_REQUIRED tickets
+
+**Validates:**
+- ✅ EXIT_INITIATED status applied correctly
+- ✅ Tickets automatically reassigned (no manual intervention required)
+- ✅ Ticket status moves to REASSIGNED
+- ✅ Iterations NOT reset (preserved with all outcomes)
+- ✅ SLA clocks NOT reset (delivery_datetime unchanged)
+- ✅ Ticket history remains intact (created_at unchanged)
+- ✅ All done transactionally (rollback on failure)
+
 ## Prerequisites
 
 1. Backend server must be running:
@@ -56,6 +73,11 @@ npm run test:integration:happy
 ### Run Revision Flow Test
 ```bash
 npm run test:integration:revision
+```
+
+### Run Employee Exit Flow Test
+```bash
+npm run test:integration:exit
 ```
 
 ### Run All Integration Tests
