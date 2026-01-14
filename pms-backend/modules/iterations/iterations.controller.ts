@@ -110,4 +110,60 @@ router.post('/tickets/:id/reject', async (req: Request, res: Response) => {
     }
 });
 
+// Request Revision (Alias for reject with more business-friendly naming)
+router.post('/tickets/:id/revision', async (req: Request, res: Response) => {
+    try {
+        const ticketId = req.params.id as string;
+        const { reviewer_id, comments } = req.body;
+
+        if (!reviewer_id) {
+            res.status(400).json({ error: 'reviewer_id is required' });
+            return;
+        }
+
+        const rejectData: RejectTicketDTO = { approved_by: reviewer_id, reason: comments };
+        const result = await iterationsService.rejectTicket(ticketId, rejectData);
+
+        res.json({
+            message: 'Revision requested. Ticket moved to REVISION_REQUIRED status.',
+            revision: {
+                old_iteration: result.oldIteration,
+                new_iteration: result.newIteration,
+                comments: comments, // Include the revision comments
+            },
+            approval: result.approval,
+            ftr: result.ftr,
+        });
+    } catch (error: any) {
+        if (error.message === 'Ticket not found') {
+            res.status(404).json({ error: error.message });
+        } else if (
+            error.message.includes('No iteration') ||
+            error.message.includes('not pending') ||
+            error.message.includes('Cannot reject')
+        ) {
+            res.status(400).json({ error: error.message });
+        } else {
+            res.status(500).json({ error: error.message });
+        }
+    }
+});
+
+// Get FTR Metric for Ticket
+router.get('/tickets/:id/ftr', async (req: Request, res: Response) => {
+    try {
+        const ticketId = req.params.id as string;
+        const ftr = await iterationsService.getFTR(ticketId);
+
+        if (!ftr) {
+            res.status(404).json({ error: 'FTR record not found for this ticket' });
+            return;
+        }
+
+        res.json(ftr);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 export default router;

@@ -17,7 +17,10 @@
       "Bash(npm run dev:all:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run test:integration:revision:*)",
+      "Bash(npm run dev:api:*)",
+      "Bash(npm run migrate:*)"
     ],
     "deny": [],
     "ask": []

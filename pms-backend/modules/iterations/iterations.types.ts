@@ -2,7 +2,7 @@
 export enum IterationOutcome {
     PENDING = 'PENDING',
     APPROVED = 'APPROVED',
-    REVISION_REQUIRED = 'REVISION_REQUIRED',
+    REJECTED = 'REJECTED',
 }
 
 // Approval Status Enum

@@ -126,7 +126,7 @@ CREATE TABLE ticket_iterations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     ticket_id UUID NOT NULL REFERENCES tickets(id),
     iteration_number INT NOT NULL,
-    outcome VARCHAR(50) CHECK (outcome IN ('PENDING', 'APPROVED', 'REVISION_REQUIRED')),
+    outcome VARCHAR(50) CHECK (outcome IN ('PENDING', 'APPROVED', 'REJECTED')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

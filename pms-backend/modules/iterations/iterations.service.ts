@@ -202,7 +202,7 @@ export class IterationsService {
 
     /**
      * Reject ticket / Request revision (Transactional)
-     * - Updates current iteration outcome to REVISION_REQUIRED
+     * - Updates current iteration outcome to REJECTED
      * - Creates NEW iteration with iteration_number + 1
      * - Sets FTR = FALSE (permanent, locked)
      * - Updates ticket status to REVISION_REQUIRED
@@ -238,10 +238,10 @@ export class IterationsService {
                 throw new Error('Current iteration is not pending. Cannot reject.');
             }
 
-            // 3. Update current iteration outcome to REVISION_REQUIRED
+            // 3. Update current iteration outcome to REJECTED
             await client.query(
                 'UPDATE ticket_iterations SET outcome = $1 WHERE id = $2',
-                [IterationOutcome.REVISION_REQUIRED, currentIteration.id]
+                [IterationOutcome.REJECTED, currentIteration.id]
             );
 
             // 4. Create NEW iteration with iteration_number + 1
