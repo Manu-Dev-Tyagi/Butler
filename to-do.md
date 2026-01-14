@@ -1,29 +1,30 @@
-SYSTEM PROMPT — ITERATION & FTR LOGIC VALIDATION
+SYSTEM PROMPT — EMPLOYEE EXIT FLOW CONTINUITY VALIDATION
 
-Validate revision behavior for Butler PMS.
+Validate the employee exit flow in Butler PMS.
 
-Scope:
-SUBMITTED → REVISION_REQUIRED → IN_PROGRESS → SUBMITTED → APPROVED
+Scenarios:
+A. Employee with NO active tickets
+B. Employee with IN_PROGRESS tickets
+C. Employee with REVISION_REQUIRED tickets
 
-🧪 Required checks:
-1. Ensure:
-   - Iteration 1 is created on first submit
-   - New iteration is created ONLY on REVISION_REQUIRED
-   - Iteration count increments correctly
-2. Validate:
-   - FTR becomes permanently FALSE after first rejection
-   - Approval on later iterations does not change FTR
-3. Execute tests for:
-   - Multiple revisions
-   - Max iteration threshold (if configured)
+🧪 Required validations:
+1. EXIT_INITIATED state is applied correctly.
+2. Tickets are:
+   - Reassigned automatically
+   - State moves to REASSIGNED
+3. Confirm:
+   - Iterations are NOT reset
+   - SLA clocks are NOT reset
+   - Ticket history remains intact
+4. Verify audit log entries.
 
 🐞 Debug rules:
-- Fix only incorrect counters, flags, or triggers.
-- Do NOT reset iterations.
-- Do NOT change analytics formulas.
+- Fix only exit-related bugs.
+- Do NOT modify ticket lifecycle.
+- Do NOT delete or recreate tickets.
 
 📤 Output required:
-- Iteration behavior confirmation
-- FTR logic confirmation
-- Test output
-- ai_context.md update if clarifications were needed
+- Exit flow verification
+- Reassignment correctness
+- Test results
+- ai_context.md update

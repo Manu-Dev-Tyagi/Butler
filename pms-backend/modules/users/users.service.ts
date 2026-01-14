@@ -1,11 +1,16 @@
 import * as bcrypt from 'bcrypt';
 import { UsersRepository, User } from './users.repository';
+import { TicketsService } from '@modules/tickets/tickets.service';
+import { pool } from '@database/connection';
+import { PoolClient } from 'pg';
 
 export class UsersService {
     private readonly repository: UsersRepository;
+    private readonly ticketsService: TicketsService;
 
     constructor() {
         this.repository = new UsersRepository();
+        this.ticketsService = new TicketsService();
     }
 
     async createUser(data: any): Promise<User> {
@@ -53,10 +58,69 @@ export class UsersService {
     }
 
     async initiateExit(id: string): Promise<User | null> {
-        return this.repository.update(id, {
-            employment_status: 'EXIT_INITIATED',
-            exit_requested_at: new Date(),
-        });
+        const client: PoolClient = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            // 1. Update user employment status
+            const userResult = await client.query(
+                `UPDATE users
+                 SET employment_status = $1, exit_requested_at = $2
+                 WHERE id = $3
+                 RETURNING *`,
+                ['EXIT_INITIATED', new Date(), id]
+            );
+
+            if (userResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return null;
+            }
+
+            // 2. Get all active tickets assigned to this user
+            const activeTicketsResult = await client.query(
+                `SELECT t.id FROM tickets t
+                 INNER JOIN ticket_assignments ta ON t.id = ta.ticket_id
+                 WHERE ta.user_id = $1
+                 AND ta.assignment_status = 'ACTIVE'
+                 AND t.status NOT IN ('DELIVERED', 'CLOSED', 'CANCELLED')`,
+                [id]
+            );
+
+            // 3. Unassign all active tickets (moves them to REASSIGNED status)
+            for (const row of activeTicketsResult.rows) {
+                const ticketId = row.id;
+
+                // Deactivate assignment
+                await client.query(
+                    `UPDATE ticket_assignments
+                     SET assignment_status = 'INACTIVE', unassigned_at = $1
+                     WHERE ticket_id = $2 AND assignment_status = 'ACTIVE'`,
+                    [new Date(), ticketId]
+                );
+
+                // Set ticket status to REASSIGNED
+                await client.query(
+                    `UPDATE tickets
+                     SET status = $1
+                     WHERE id = $2`,
+                    ['REASSIGNED', ticketId]
+                );
+            }
+
+            await client.query('COMMIT');
+            client.release();
+
+            console.log(`[EXIT] User ${id} exit initiated. ${activeTicketsResult.rows.length} ticket(s) reassigned.`);
+
+            return userResult.rows[0];
+        } catch (error) {
+            if (client) {
+                await client.query('ROLLBACK');
+                client.release();
+            }
+            throw error;
+        }
     }
 
     async getExits(): Promise<User[]> {
