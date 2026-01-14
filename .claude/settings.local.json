@@ -15,7 +15,9 @@
       "Bash(xargs kill:*)",
       "Bash(killall:*)",
       "Bash(npm run dev:all:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
