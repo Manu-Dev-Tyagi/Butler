@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Button } from '../components/ui/Button';
 import { ProjectOverview } from '../components/project/ProjectOverview';
+import ProjectCommandCenter from '../components/project/ProjectCommandCenter';
 import { ProjectMembers } from '../components/project/ProjectMembers';
 import { ProjectTickets } from '../components/project/ProjectTickets';
 import { ProjectResponseSheets } from '../components/project/ProjectResponseSheets';
@@ -38,6 +39,7 @@ export default function ProjectDetail() {
         { id: 'members', label: 'Members', icon: Users },
         { id: 'tickets', label: 'Tickets', icon: Ticket },
         { id: 'response-sheets', label: 'Response Sheets', icon: FileText },
+        { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     ];
 
     return (
@@ -144,7 +146,7 @@ export default function ProjectDetail() {
             </div>
 
             <div>
-                {activeTab === 'overview' && <ProjectOverview project={project} />}
+                {activeTab === 'overview' && <ProjectCommandCenter project={project} />}
                 {activeTab === 'members' && (
                     <ProjectMembers
                         project={project}
@@ -156,6 +158,11 @@ export default function ProjectDetail() {
                 )}
                 {activeTab === 'tickets' && <ProjectTickets projectId={project.id} />}
                 {activeTab === 'response-sheets' && <ProjectResponseSheets projectId={project.id} />}
+                {activeTab === 'analytics' && (
+                    <Card style={{ padding: '2rem', textAlign: 'center' }}>
+                        <p style={{ color: 'var(--color-text-muted)' }}>Analytics view coming soon...</p>
+                    </Card>
+                )}
             </div>
         </div>
     );

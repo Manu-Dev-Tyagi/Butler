@@ -9,14 +9,17 @@ import {
     AssignTicketDTO,
 } from './tickets.types';
 import { TicketEventPublisher } from '@events/publishers/ticket.publisher';
+import { IterationsService } from '@modules/iterations/iterations.service';
 
 export class TicketsService {
     private readonly repository: TicketsRepository;
     private readonly eventPublisher: TicketEventPublisher;
+    private readonly iterationsService: IterationsService;
 
     constructor() {
         this.repository = new TicketsRepository();
         this.eventPublisher = new TicketEventPublisher();
+        this.iterationsService = new IterationsService();
     }
 
     /**
@@ -76,10 +79,34 @@ export class TicketsService {
 
     /**
      * Update ticket status only
+     * If status changes to SUBMITTED, automatically create iteration 1 (if it doesn't exist)
      */
     async updateTicketStatus(id: string, status: TicketStatus): Promise<Ticket | null> {
         if (!Object.values(TicketStatus).includes(status)) {
             throw new Error('Invalid status value');
+        }
+
+        // Get current ticket to check current status
+        const currentTicket = await this.repository.findById(id);
+        if (!currentTicket) {
+            throw new Error('Ticket not found');
+        }
+
+        // If status is changing to SUBMITTED, create iteration 1 automatically (if it doesn't exist)
+        if (status === TicketStatus.SUBMITTED && currentTicket.status !== TicketStatus.SUBMITTED) {
+            try {
+                // Check if iteration already exists
+                const existingIterations = await this.iterationsService.getIterations(id);
+                if (existingIterations.length === 0) {
+                    // Create first iteration automatically
+                    await this.iterationsService.createFirstIteration(id);
+                }
+            } catch (error: any) {
+                // If iteration already exists, that's fine - continue with status update
+                if (!error.message.includes('already exists')) {
+                    throw error;
+                }
+            }
         }
 
         return this.repository.updateStatus(id, status);

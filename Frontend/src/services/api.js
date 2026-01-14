@@ -352,6 +352,10 @@ export const api = {
                 read: n.is_read
             }));
         },
+        list: async () => {
+            const response = await apiClient.get('/notifications');
+            return response.data || [];
+        },
         markRead: async (id) => {
             const response = await apiClient.patch(`/notifications/${id}/read`);
             return response.data;
@@ -359,6 +363,38 @@ export const api = {
         unreadCount: async (userId) => {
             const response = await apiClient.get(`/notifications/unread/count?user_id=${userId}`);
             return response.data.count;
+        }
+    },
+    users: {
+        list: async () => {
+            const response = await apiClient.get('/users');
+            return response.data || [];
+        },
+        get: async (id) => {
+            const response = await apiClient.get(`/users/${id}`);
+            return response.data;
+        }
+    },
+    events: {
+        list: async (filters = {}) => {
+            try {
+                const params = new URLSearchParams();
+                if (filters.status && filters.status !== 'all') params.append('status', filters.status);
+                const response = await apiClient.get(`/events?${params.toString()}`);
+                return response.data || [];
+            } catch (err) {
+                // Endpoint may not exist yet
+                console.warn('Events endpoint not available:', err);
+                return [];
+            }
+        },
+        retry: async (id) => {
+            const response = await apiClient.post(`/events/${id}/retry`);
+            return response.data;
+        },
+        markFailed: async (id) => {
+            const response = await apiClient.post(`/events/${id}/mark-failed`);
+            return response.data;
         }
     }
 };

@@ -16,6 +16,7 @@ import {
     User
 } from 'lucide-react';
 import { NotificationPanel } from '../ui/NotificationPanel';
+import { GlobalSearch } from '../search/GlobalSearch';
 import { useNotifications } from '../../context/NotificationContext';
 import '../../styles/components.css';
 
@@ -24,6 +25,7 @@ export default function Layout() {
     const location = useLocation();
     const navigate = useNavigate();
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showSearch, setShowSearch] = useState(false);
     const { unreadCount } = useNotifications();
 
     const handleLogout = () => {
@@ -38,6 +40,7 @@ export default function Layout() {
         { label: 'Overall', path: '/dashboard/admin', icon: LayoutDashboard },
         ...(user?.role === 'PM' || user?.role === 'ADMIN' ? [{ label: 'PM', path: '/dashboard/pm', icon: Users }] : []),
         { label: 'Employee', path: '/dashboard/employee', icon: User },
+        { label: 'Activity Feed', path: '/activity-feed', icon: CheckSquare },
 
         ...(user?.role === 'ADMIN' || user?.role === 'PM' ? [
             { label: 'Create Project', path: '/projects/create', icon: FolderPlus },
@@ -121,9 +124,14 @@ export default function Layout() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                        <button style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}>
+                        <button 
+                            onClick={() => setShowSearch(true)}
+                            style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer' }}
+                            title="Search (Ctrl+K)"
+                        >
                             <Search size={20} />
                         </button>
+                        {showSearch && <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />}
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
                             style={{ background: 'transparent', border: 'none', color: 'var(--color-text-muted)', cursor: 'pointer', position: 'relative' }}

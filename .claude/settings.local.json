@@ -13,7 +13,9 @@
       "Bash(npm install)",
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Bash(npm run dev:all:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
